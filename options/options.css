@@ -361,7 +361,27 @@ body { min-height: 100vh; }
   text-align: center;
   color: var(--muted);
   font-size: 0.75rem;
-  padding: 4px;
+  padding: 12px 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+.page-footer .credits {
+  color: #475569;
+  line-height: 1.4;
+}
+.page-footer .credits strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+.page-footer a {
+  color: #0b5cab;
+  font-weight: 600;
+  text-decoration: none;
+}
+.page-footer a:hover {
+  text-decoration: underline;
 }
 
 .toast {
@@ -546,6 +566,34 @@ body { min-height: 100vh; }
   flex: 1;
   min-width: 0;
 }
+.source-meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.source-meta-row input {
+  flex: 1;
+  min-width: 0;
+}
+.source-folder-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.source-folder-hint code {
+  font-size: 0.75rem;
+}
+.hint-list {
+  margin: 8px 0 10px;
+  padding-left: 1.2rem;
+  color: #334155;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+.hint-list li {
+  margin-bottom: 6px;
+}
 .kind-badge {
   display: inline-block;
   font-size: 0.7rem;
@@ -560,23 +608,6 @@ body { min-height: 100vh; }
 .kind-badge.folder {
   background: #fef3c7;
   color: #b45309;
-}
-.advanced-box {
-  margin-top: 14px;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 10px 14px;
-  background: #f8fafc;
-}
-.advanced-box summary {
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 0.875rem;
-  color: var(--muted);
-}
-.advanced-box[open] summary {
-  margin-bottom: 8px;
-  color: var(--text);
 }
 .source-actions {
   display: flex;

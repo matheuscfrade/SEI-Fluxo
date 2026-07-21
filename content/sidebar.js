@@ -26,13 +26,23 @@
       .replace(/"/g, "&quot;");
   }
 
+  function sameText(a, b) {
+    const n = (s) =>
+      String(s || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
+    return n(a) === n(b) && !!n(a);
+  }
+
   class SeiFluxoSidebar {
     constructor() {
       this.open = true;
       this.width = 340;
       this.meta = null;
       this.flow = null;
-      this.currentStepIndex = -1;
       this.flowConflict = false;
       this.flowCandidates = [];
       this.flowAlternatives = [];
@@ -40,7 +50,6 @@
       this.root = null;
       this.onToggle = null;
       this.onRefresh = null;
-      this.onOpenAdmin = null;
       this.onSelectFlow = null;
     }
 
@@ -75,7 +84,6 @@
     setState({
       meta,
       flow,
-      currentStepIndex,
       open,
       width,
       flowConflict,
@@ -86,15 +94,12 @@
       const contentChanged =
         (meta !== undefined && meta !== this.meta) ||
         (flow !== undefined && flow !== this.flow) ||
-        (currentStepIndex !== undefined &&
-          currentStepIndex !== this.currentStepIndex) ||
         (flowConflict !== undefined && flowConflict !== this.flowConflict) ||
         (flowCandidates !== undefined &&
           flowCandidates !== this.flowCandidates);
 
       if (meta !== undefined) this.meta = meta;
       if (flow !== undefined) this.flow = flow;
-      if (currentStepIndex !== undefined) this.currentStepIndex = currentStepIndex;
       if (width !== undefined) this.width = width;
       if (flowConflict !== undefined) this.flowConflict = flowConflict;
       if (flowCandidates !== undefined) this.flowCandidates = flowCandidates || [];
@@ -242,26 +247,87 @@
       return header;
     }
 
+    /**
+     * Card único com processo + fluxo (sem repetir tipo/origem/nome).
+     */
+    renderIdentityCard(meta, flow) {
+      const info = el("section", "sf-card sf-identity");
+      const num = meta?.processNumber || "—";
+      const tipo = meta?.processType || "Não identificado";
+
+      const parts = [];
+      parts.push(`
+        <div class="sf-id-block">
+          <div class="sf-card-label">Processo</div>
+          <div class="sf-process-number">${escapeHtml(num)}</div>
+        </div>
+      `);
+
+      if (flow) {
+        const title =
+          flow._flowTitle ||
+          String(flow.flowName || "").trim() ||
+          flow.processType ||
+          "Fluxo";
+        const institution = String(flow._sourceInstitution || "").trim();
+        const department = String(flow._sourceDepartment || "").trim();
+        const origin = [institution, department].filter(Boolean).join(" · ");
+        const showType =
+          !!tipo &&
+          tipo !== "Não identificado" &&
+          !sameText(title, tipo);
+
+        parts.push(`
+          <div class="sf-id-block">
+            <div class="sf-card-label">Fluxo</div>
+            <div class="sf-flow-name">${escapeHtml(title)}</div>
+            ${
+              origin
+                ? `<div class="sf-flow-origin">${escapeHtml(origin)}</div>`
+                : ""
+            }
+          </div>
+        `);
+
+        if (showType) {
+          parts.push(`
+            <div class="sf-id-block">
+              <div class="sf-card-label">Tipo no SEI</div>
+              <div class="sf-process-type">${escapeHtml(tipo)}</div>
+            </div>
+          `);
+        }
+
+        if (flow.description) {
+          parts.push(
+            `<p class="sf-flow-desc">${escapeHtml(flow.description)}</p>`
+          );
+        }
+
+        const n = (flow.steps || []).length;
+        parts.push(
+          `<div class="sf-badge">${n} etapa${n === 1 ? "" : "s"}</div>`
+        );
+      } else if (meta?.processType) {
+        parts.push(`
+          <div class="sf-id-block">
+            <div class="sf-card-label">Tipo no SEI</div>
+            <div class="sf-process-type">${escapeHtml(tipo)}</div>
+          </div>
+        `);
+      }
+
+      info.innerHTML = parts.join("");
+      return info;
+    }
+
     renderBody() {
       const body = el("div", "sf-body");
       const meta = this.meta;
       const flow = this.flow;
-
-      // Card de identificação
-      const info = el("section", "sf-card");
-      const num = meta?.processNumber || "—";
       const tipo = meta?.processType || "Não identificado";
-      const source = this.flow?._sourceLabel
-        ? `<div class="sf-source">Catálogo: ${escapeHtml(this.flow._sourceLabel)}</div>`
-        : "";
-      info.innerHTML = `
-        <div class="sf-card-label">Processo</div>
-        <div class="sf-process-number">${escapeHtml(num)}</div>
-        <div class="sf-card-label" style="margin-top:10px">Tipo detectado</div>
-        <div class="sf-process-type">${escapeHtml(tipo)}</div>
-        ${source}
-      `;
-      body.appendChild(info);
+
+      body.appendChild(this.renderIdentityCard(meta, flow));
 
       if (!meta?.isSei) {
         body.appendChild(this.renderEmpty(
@@ -282,27 +348,16 @@
       if (!flow) {
         body.appendChild(this.renderEmpty(
           "Fluxo não cadastrado",
-          `Não há fluxo com o nome exato “${tipo}”. Cadastre o tipo com esse mesmo nome no JSON do departamento.`,
-          true
+          `Não há fluxo com o tipo “${tipo}”. Cadastre o processType com esse mesmo nome no JSON do departamento (Opções da extensão).`
         ));
         return body;
       }
 
-      // Conflito: seletor sempre visível enquanto houver 2+ fluxos (para alternar a qualquer hora)
+      // Conflito: seletor sempre visível enquanto houver 2+ fluxos
       if ((this.flowCandidates || []).length > 1) {
         body.appendChild(this.renderConflictPicker());
       }
 
-      // Descrição do fluxo
-      const desc = el("section", "sf-flow-meta");
-      desc.innerHTML = `
-        <div class="sf-flow-name">${escapeHtml(flow.processType)}</div>
-        ${flow.description ? `<p class="sf-flow-desc">${escapeHtml(flow.description)}</p>` : ""}
-        <div class="sf-badge">${(flow.steps || []).length} etapa(s)</div>
-      `;
-      body.appendChild(desc);
-
-      // Fluxograma sequencial
       body.appendChild(this.renderFlowchart(flow));
       return body;
     }
@@ -344,9 +399,21 @@
         });
 
         const text = el("span");
-        const src = c._sourceLabel || "Catálogo";
+        const title =
+          c._flowTitle ||
+          String(c.flowName || "").trim() ||
+          c.processType ||
+          "Fluxo";
+        const path =
+          c._displayPath ||
+          [c._sourceInstitution, c._sourceDepartment, title]
+            .map((p) => String(p || "").trim())
+            .filter(Boolean)
+            .join(" | ") ||
+          c._sourceLabel ||
+          title;
         const steps = (c.steps || []).length;
-        text.textContent = `${src} (${steps} etapa${steps === 1 ? "" : "s"})`;
+        text.textContent = `${path} (${steps} etapa${steps === 1 ? "" : "s"})`;
 
         label.appendChild(radio);
         label.appendChild(text);
@@ -371,11 +438,7 @@
       );
 
       steps.forEach((step, index) => {
-        const isCurrent = index === this.currentStepIndex;
-        const isPast =
-          this.currentStepIndex >= 0 && index < this.currentStepIndex;
-
-        const item = el("div", `sf-step ${isCurrent ? "sf-step-current" : ""} ${isPast ? "sf-step-past" : ""}`);
+        const item = el("div", "sf-step");
         item.setAttribute("data-step-order", String(step.order || index + 1));
 
         const rail = el("div", "sf-step-rail");
@@ -387,22 +450,18 @@
         }
 
         const content = el("div", "sf-step-content");
-        const title = el("div", "sf-step-title", { text: step.name || `Etapa ${index + 1}` });
+        const title = el("div", "sf-step-title", {
+          text: step.name || `Etapa ${index + 1}`
+        });
         content.appendChild(title);
 
         if (step.unit) {
-          content.appendChild(
-            el("div", "sf-step-unit", { text: step.unit })
-          );
+          content.appendChild(el("div", "sf-step-unit", { text: step.unit }));
         }
         if (step.description) {
           content.appendChild(
             el("div", "sf-step-desc", { text: step.description })
           );
-        }
-        if (isCurrent) {
-          const tag = el("span", "sf-step-tag", { text: "Possível etapa atual" });
-          content.appendChild(tag);
         }
 
         item.appendChild(rail);
@@ -413,7 +472,7 @@
       return wrap;
     }
 
-    renderEmpty(title, message, showAdmin = false) {
+    renderEmpty(title, message) {
       const box = el("div", "sf-empty");
       box.innerHTML = `
         <div class="sf-empty-icon" aria-hidden="true">
@@ -426,29 +485,22 @@
         <div class="sf-empty-title">${escapeHtml(title)}</div>
         <p class="sf-empty-msg">${escapeHtml(message)}</p>
       `;
-      if (showAdmin) {
-        const btn = el("button", "sf-btn sf-btn-primary", {
-          type: "button",
-          text: "Abrir cadastro de fluxos"
-        });
-        btn.addEventListener("click", () => this.onOpenAdmin?.());
-        box.appendChild(btn);
-      }
       return box;
     }
 
     renderFooter() {
       const footer = el("footer", "sf-footer");
-      const btnAdmin = el("button", "sf-btn sf-btn-ghost", {
-        type: "button",
-        text: "Administrar fluxos"
-      });
-      btnAdmin.addEventListener("click", () => this.onOpenAdmin?.());
-      footer.appendChild(btnAdmin);
-      const note = el("div", "sf-footer-note", {
-        text: "Demonstrativo — etapas cadastradas pelo administrador"
-      });
-      footer.appendChild(note);
+      footer.innerHTML = `
+        <div class="sf-credits">
+          Desenvolvido por <strong>Matheus Costa Frade</strong>
+        </div>
+        <a class="sf-github"
+           href="https://github.com/matheuscfrade/SEI-Fluxo"
+           target="_blank"
+           rel="noopener noreferrer">
+          github.com/matheuscfrade/SEI-Fluxo
+        </a>
+      `;
       return footer;
     }
   }
@@ -579,6 +631,14 @@
       color: var(--sf-muted);
       font-weight: 700;
     }
+    .sf-identity {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sf-id-block {
+      min-width: 0;
+    }
     .sf-process-number {
       font-size: 14px;
       font-weight: 700;
@@ -587,16 +647,43 @@
       font-variant-numeric: tabular-nums;
     }
     .sf-process-type {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--sf-primary);
       margin-top: 4px;
+      line-height: 1.35;
+      word-break: break-word;
     }
-    .sf-source {
-      margin-top: 8px;
-      font-size: 11px;
-      color: var(--sf-muted);
+    .sf-flow-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-top: 4px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .sf-flow-origin {
+      font-size: 12px;
       font-weight: 600;
+      color: var(--sf-muted);
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+    .sf-flow-desc {
+      margin: 0;
+      font-size: 12px;
+      color: var(--sf-muted);
+      line-height: 1.45;
+    }
+    .sf-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      font-size: 11px;
+      font-weight: 700;
+      color: #0369a1;
+      background: #e0f2fe;
+      border-radius: 999px;
+      padding: 4px 10px;
     }
     .sf-conflict {
       margin-top: 4px;
@@ -652,29 +739,6 @@
       font-size: 10px;
       color: var(--sf-muted);
       font-weight: 600;
-    }
-    .sf-flow-meta {
-      padding: 0 2px;
-    }
-    .sf-flow-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .sf-flow-desc {
-      margin: 6px 0 0;
-      font-size: 12px;
-      color: var(--sf-muted);
-    }
-    .sf-badge {
-      display: inline-flex;
-      margin-top: 8px;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--sf-primary);
-      background: #e0f2fe;
-      border-radius: 999px;
-      padding: 3px 10px;
     }
     .sf-flowchart {
       display: flex;
@@ -738,36 +802,6 @@
       font-size: 12px;
       color: var(--sf-muted);
     }
-    .sf-step-tag {
-      display: inline-block;
-      margin-top: 8px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #b45309;
-      background: #fef3c7;
-      border-radius: 999px;
-      padding: 3px 8px;
-    }
-    .sf-step-current .sf-step-bullet {
-      background: linear-gradient(135deg, #0b5cab, #0e7490);
-      color: #fff;
-      border-color: #0b5cab;
-      box-shadow: 0 0 0 4px rgba(11, 92, 171, 0.18);
-    }
-    .sf-step-current .sf-step-content {
-      border-color: #7dd3fc;
-      background: #f0f9ff;
-    }
-    .sf-step-past .sf-step-bullet {
-      background: #059669;
-      border-color: #047857;
-      color: #fff;
-    }
-    .sf-step-past .sf-step-line {
-      background: #6ee7b7;
-    }
     .sf-empty {
       background: var(--sf-panel);
       border: 1px dashed #cbd5e1;
@@ -780,37 +814,33 @@
     .sf-empty-msg { margin: 8px 0 0; font-size: 12px; color: var(--sf-muted); }
     .sf-footer {
       flex-shrink: 0;
-      border-top: 1px solid var(--sf-border);
       padding: 10px 12px 12px;
-      background: #fff;
+      border-top: 1px solid var(--sf-border);
+      background: #f8fafc;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-    }
-    .sf-btn {
-      border: 0;
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: pointer;
-      font-family: inherit;
-    }
-    .sf-btn-primary {
-      background: linear-gradient(135deg, #0b5cab, #0e7490);
-      color: #fff;
-      margin-top: 12px;
-    }
-    .sf-btn-ghost {
-      background: #f1f5f9;
-      color: #0f172a;
-      border: 1px solid #e2e8f0;
-    }
-    .sf-btn-ghost:hover { background: #e2e8f0; }
-    .sf-footer-note {
-      font-size: 10px;
-      color: #94a3b8;
+      gap: 4px;
+      align-items: center;
       text-align: center;
+    }
+    .sf-credits {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.35;
+    }
+    .sf-credits strong {
+      color: #334155;
+      font-weight: 700;
+    }
+    .sf-github {
+      font-size: 10px;
+      font-weight: 600;
+      color: #0b5cab;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .sf-github:hover {
+      text-decoration: underline;
     }
   `;
 

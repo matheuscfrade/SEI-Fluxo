@@ -101,7 +101,6 @@
       processTypeScore: picked.score,
       processNumber: b.processNumber || a.processNumber || null,
       idProcedimento: b.idProcedimento || a.idProcedimento || null,
-      hints: [...(b.hints || []), ...(a.hints || [])].slice(0, 50),
       url: b.url || a.url,
       host: b.host || a.host,
       acao: b.acao || a.acao,
@@ -147,16 +146,9 @@
       }
     }
 
-    const flow = resolved.flow;
-    const steps = flow?.steps || [];
-    const currentStepIndex =
-      settings?.highlightKeywords && flow
-        ? SeiFluxoDetector.guessCurrentStepIndex(steps, meta?.hints || [])
-        : -1;
     return {
       meta,
-      flow,
-      currentStepIndex,
+      flow: resolved.flow,
       flowConflict: !!resolved.conflict,
       flowCandidates: resolved.candidates || [],
       flowAlternatives: resolved.alternatives || []
@@ -208,7 +200,6 @@
         }
       };
       sidebar.onRefresh = () => scheduleScan(0);
-      sidebar.onOpenAdmin = openAdmin;
       sidebar.onSelectFlow = async (flowId) => {
         const tipo = lastMeta?.processType;
         if (!tipo || !flowId) return;
@@ -260,7 +251,6 @@
       sb.setState({
         meta: vm.meta,
         flow: vm.flow,
-        currentStepIndex: vm.currentStepIndex,
         flowConflict: vm.flowConflict,
         flowCandidates: vm.flowCandidates,
         flowAlternatives: vm.flowAlternatives,
@@ -427,14 +417,6 @@
       subtree: true,
       characterData: false
     });
-  }
-
-  function openAdmin() {
-    try {
-      chrome.runtime.sendMessage({ type: "SEI_FLUXO_OPEN_OPTIONS" });
-    } catch (e) {
-      log("Falha ao abrir opções", e);
-    }
   }
 
   try {

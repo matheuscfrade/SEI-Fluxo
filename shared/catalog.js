@@ -97,13 +97,26 @@
     );
   }
 
+  /**
+   * Título exibido do fluxo: nome específico (flowName) ou, se vazio, o tipo SEI.
+   */
+  function flowDisplayName(flow) {
+    const specific = String(flow?.flowName || "").trim();
+    if (specific) return specific;
+    return String(flow?.processType || "").trim() || "Fluxo";
+  }
+
   function cleanFlow(f, i) {
     const gen =
       (root.SeiFluxoStorage && root.SeiFluxoStorage.generateId) ||
       ((p) => `${p}-${i}-${Date.now()}`);
+    const processType = String(f.processType || `Fluxo ${i + 1}`).trim();
+    const flowName = String(f.flowName || "").trim();
     return {
       id: f.id || gen("flow"),
-      processType: String(f.processType || `Fluxo ${i + 1}`).trim(),
+      processType,
+      /** Nome específico do fluxo de trabalho (quando o mesmo tipo SEI tem vários fluxos) */
+      flowName,
       description: String(f.description || ""),
       active: f.active !== false,
       steps: Array.isArray(f.steps)
@@ -140,11 +153,10 @@
   }
 
   /**
-   * Lista arquivos .json em pasta pública do Drive.
-   * 1) API do Google (se houver apiKey)
-   * 2) Página embeddedfolderview (pasta pública com link)
+   * Lista arquivos .json em pasta pública do Drive
+   * (embeddedfolderview + página da pasta com link de compartilhamento).
    */
-  async function listJsonFilesInDriveFolder(folderId, apiKey) {
+  async function listJsonFilesInDriveFolder(folderId) {
     const files = [];
     const seen = new Set();
 
@@ -159,43 +171,6 @@
       });
     };
 
-    // --- API oficial (melhor, precisa de chave opcional) ---
-    if (apiKey) {
-      try {
-        let pageToken = "";
-        do {
-          const q = encodeURIComponent(
-            `'${folderId}' in parents and trashed=false`
-          );
-          const fields = encodeURIComponent("nextPageToken,files(id,name,mimeType)");
-          let apiUrl =
-            `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=100&key=${encodeURIComponent(apiKey)}`;
-          if (pageToken) apiUrl += `&pageToken=${encodeURIComponent(pageToken)}`;
-
-          const res = await fetch(apiUrl, { credentials: "omit", cache: "no-cache" });
-          if (!res.ok) {
-            throw new Error(`API Drive HTTP ${res.status}`);
-          }
-          const data = await res.json();
-          for (const f of data.files || []) {
-            const isJson =
-              /\.json$/i.test(f.name || "") ||
-              f.mimeType === "application/json" ||
-              f.mimeType === "text/plain" ||
-              f.mimeType === "application/octet-stream";
-            if (isJson && f.id) add(f.id, f.name || `${f.id}.json`);
-          }
-          pageToken = data.nextPageToken || "";
-        } while (pageToken);
-
-        if (files.length) return files;
-      } catch (err) {
-        console.warn("[SEI Fluxo] listagem API Drive falhou:", err);
-        // cai no método público
-      }
-    }
-
-    // --- Pasta pública: embedded folderview + página da pasta ---
     const pages = [
       `https://drive.google.com/embeddedfolderview?id=${encodeURIComponent(folderId)}#list`,
       `https://drive.google.com/drive/folders/${encodeURIComponent(folderId)}?usp=sharing`
@@ -324,9 +299,10 @@
 
   /**
    * Expande uma pasta do Drive em vários catálogos (um por .json).
+   * Instituição vem da fonte; departamento = nome do arquivo (sem .json).
    * @returns {{ batches, errors, filesFound }}
    */
-  async function fetchCatalogsFromFolder(folderUrl, parentLabel, apiKey) {
+  async function fetchCatalogsFromFolder(folderUrl, institution) {
     const folderId = extractDriveFolderId(folderUrl);
     if (!folderId) {
       throw new Error(
@@ -334,29 +310,30 @@
       );
     }
 
-    const files = await listJsonFilesInDriveFolder(folderId, apiKey);
+    const files = await listJsonFilesInDriveFolder(folderId);
     if (!files.length) {
       throw new Error(
         "Nenhum arquivo .json encontrado na pasta. " +
           "Confira se a pasta (e os arquivos) estão como “Qualquer pessoa com o link — Leitor”. " +
-          "Se a listagem falhar, use “+ Adicionar arquivo” para cada JSON, ou configure uma chave da API do Google Drive (opcional)."
+          "Se a listagem falhar, use “+ Arquivo JSON” para cada JSON individualmente."
       );
     }
 
+    const inst = String(institution || "").trim();
     const batches = [];
     const errors = [];
 
     for (const f of files) {
       const fileUrl = `https://drive.google.com/uc?export=download&id=${f.id}`;
-      const labelBase = labelFromFileName(f.name);
-      const label = parentLabel
-        ? `${parentLabel} / ${labelBase}`
-        : labelBase;
+      const department = labelFromFileName(f.name);
+      const label = [inst, department].filter(Boolean).join(" | ") || department;
       try {
         const result = await fetchCatalogFromUrl(
           `https://drive.google.com/file/d/${f.id}/view`
         );
         batches.push({
+          institution: inst,
+          department,
           label,
           url: fileUrl,
           flows: result.catalog.flows,
@@ -367,6 +344,8 @@
       } catch (err) {
         errors.push({
           label,
+          institution: inst,
+          department,
           url: fileUrl,
           fileName: f.name,
           error: err.message || String(err)
@@ -401,6 +380,7 @@
     fetchCatalogFromUrl,
     listJsonFilesInDriveFolder,
     fetchCatalogsFromFolder,
-    labelFromFileName
+    labelFromFileName,
+    flowDisplayName
   };
 })(typeof globalThis !== "undefined" ? globalThis : window);

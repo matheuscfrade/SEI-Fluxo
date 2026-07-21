@@ -27,15 +27,23 @@
       <div class="card">
         <h2>Fontes de fluxos</h2>
         <p class="muted">
-          Adicione <strong>arquivos JSON</strong> (um departamento) e/ou uma
-          <strong>pasta do Google Drive</strong> com vários JSON (instituição inteira).
-          Cada <code>.json</code> da pasta vira um catálogo (nome = nome do arquivo).
-          Se o mesmo tipo existir em mais de um JSON, no SEI o usuário
-          <strong>escolhe qual exibir</strong>.
+          No SEI o fluxo aparece como
+          <strong>Instituição | Departamento | Nome do Fluxo</strong>
+          (ex.: <code>IFMG | RE-DDI | Geral: Estruturas e Regimentos IFMG</code>).
         </p>
+        <ul class="hint-list">
+          <li>
+            <strong>Arquivo JSON</strong> — informe instituição + departamento + link do arquivo.
+          </li>
+          <li>
+            <strong>Pasta do Drive</strong> — informe a instituição + link da pasta;
+            cada <code>.json</code> vira um departamento (nome do arquivo).
+          </li>
+        </ul>
         <p class="hint">
-          Pasta e arquivos devem estar como <strong>Qualquer pessoa com o link — Leitor</strong>.
-          Link de pasta: <code>https://drive.google.com/drive/folders/…</code>
+          Pasta e arquivos: <strong>Qualquer pessoa com o link — Leitor</strong>.
+          Nome do fluxo = <code>flowName</code> (ou <code>processType</code>, se vazio).
+          Match no SEI = <code>processType</code> (nome exato do Tipo).
         </p>
 
         <div id="sourcesList" class="sources-list"></div>
@@ -45,19 +53,6 @@
           <button type="button" id="btnAddFolder" class="btn btn-ghost-dark">+ Pasta do Drive</button>
           <button type="button" id="btnSync" class="btn btn-primary">Carregar todos os fluxos</button>
         </div>
-
-        <details class="advanced-box">
-          <summary>Opção avançada: chave da API Google (listagem de pastas)</summary>
-          <p class="hint">
-            Em algumas pastas a listagem pública falha. Uma chave da
-            <strong>Google Drive API</strong> (somente leitura, restrita) melhora a detecção dos
-            <code>.json</code>. Fica só neste navegador. Deixe em branco se não precisar.
-          </p>
-          <label class="field">
-            <span>Chave da API (opcional)</span>
-            <input type="password" id="fldDriveApiKey" placeholder="AIza…" autocomplete="off" />
-          </label>
-        </details>
 
         <div class="status-box" style="margin-top:14px">
           <div class="status-line"><span>Status</span><strong id="stCatalog">Aguardando fontes</strong></div>
@@ -86,13 +81,17 @@
     <!-- EDITOR -->
     <section id="panel-editor" class="panel-section hidden">
       <div class="card publish-banner">
-        <h2>Como publicar (por departamento)</h2>
+        <h2>Como publicar</h2>
         <ol class="help-list">
-          <li>Monte os fluxos do departamento abaixo e clique em <strong>Baixar JSON</strong>.</li>
-          <li>Envie o arquivo ao <strong>Google Drive</strong> do departamento.</li>
+          <li>Monte os fluxos e clique em <strong>Baixar JSON</strong>. <code>processType</code> = Tipo no SEI; <code>flowName</code> = nome específico do fluxo (opcional, útil se o tipo tiver vários).</li>
+          <li>Envie ao Drive: arquivo avulso (ex.: um departamento) ou pasta com vários JSON (ex.: <code>RE-DDI.json</code>, <code>RH.json</code>).</li>
           <li>Compartilhe: <strong>Qualquer pessoa com o link → Leitor</strong>.</li>
-          <li>Na aba <strong>Catálogo</strong>, adicione o link do arquivo <em>ou</em> coloque vários JSON numa pasta do Drive e use <strong>+ Pasta do Drive</strong>.</li>
-          <li>Clique em <strong>Carregar todos os fluxos</strong>. Se o mesmo tipo existir em mais de um JSON, o usuário escolhe qual ver no SEI.</li>
+          <li>
+            No <strong>Catálogo</strong>:
+            arquivo → instituição + departamento + link;
+            pasta → instituição + link (departamento = nome do arquivo).
+          </li>
+          <li>Clique em <strong>Carregar todos os fluxos</strong>. No SEI aparece <em>Instituição | Departamento | Nome do Fluxo</em>.</li>
         </ol>
       </div>
 
@@ -138,9 +137,18 @@
 
             <label class="field">
               <span>Tipo do processo * (nome exato como no SEI)</span>
-              <input type="text" id="fldProcessType" required placeholder="Ex.: Geral: Pedidos de Diárias e Passagens" />
+              <input type="text" id="fldProcessType" required placeholder="Ex.: Geral: Revisão do PDI do IFMG" />
             </label>
-            <p class="hint">O nome deve ser idêntico ao campo Tipo no SEI (não usa nomes alternativos).</p>
+            <p class="hint">Chave de identificação: deve ser idêntico ao campo Tipo no SEI. O mesmo tipo pode ter vários fluxos abaixo.</p>
+
+            <label class="field">
+              <span>Nome do fluxo</span>
+              <input type="text" id="fldFlowName" placeholder="Ex.: Alteração de Objetivo Estratégico do PDI" />
+            </label>
+            <p class="hint">
+              Nome específico deste fluxo de trabalho. Use quando o mesmo tipo SEI tiver mais de um fluxo
+              (ex.: “Plano de Oferta de Cursos e Vagas”). Se vazio, a UI usa o tipo do processo.
+            </p>
 
             <label class="field">
               <span>Descrição</span>
@@ -168,7 +176,12 @@
     </section>
 
     <footer class="page-footer">
-      <span>SEI Fluxo v<span id="version">1.0.0</span></span>
+      <div class="credits">
+        Desenvolvido por <strong>Matheus Costa Frade</strong>
+        ·
+        <a href="https://github.com/matheuscfrade/SEI-Fluxo" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+      <div>SEI Fluxo v<span id="version">1.0.0</span></div>
     </footer>
   </div>
 

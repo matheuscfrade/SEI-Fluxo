@@ -722,33 +722,6 @@
     return null;
   }
 
-  function extractContextHints(doc = document) {
-    const hints = [];
-    const andamento = doc.querySelector(
-      "#tblHistorico, #divHistorico, table[id*='Historico'], #tblAndamento, #tblAndamentos"
-    );
-    if (andamento) {
-      const rows = andamento.querySelectorAll("tr");
-      for (const row of Array.from(rows).slice(0, 15)) {
-        const t = cleanText(row);
-        if (t && t.length < 300) hints.push(t);
-      }
-    }
-
-    const tree = doc.querySelector(
-      "#divArvore, #divArvoreHtml, #frmArvore, #divArvoreDocumento"
-    );
-    if (tree) {
-      const links = tree.querySelectorAll("a");
-      for (const a of Array.from(links).slice(0, 25)) {
-        const t = cleanText(a);
-        if (t && t.length > 3 && t.length < 120) hints.push(t);
-      }
-    }
-
-    return hints;
-  }
-
   /**
    * Documentos same-origin, com iframes aninhados (ifrVisualizacao → conteúdo).
    */
@@ -787,7 +760,6 @@
     let processType = null;
     let processTypeScore = -1;
     let processNumber = null;
-    let hints = [];
     let idProcedimento = getIdProcedimento(pageUrl);
 
     if (isSeiUrl(pageUrl, safeHost(document))) {
@@ -822,7 +794,6 @@
         }
 
         if (!processNumber) processNumber = findProcessNumber(doc);
-        hints = hints.concat(extractContextHints(doc));
       }
     } else {
       for (const doc of docs) {
@@ -844,7 +815,6 @@
       processTypeScore: insideFinal ? processTypeScore : -1,
       processNumber: insideFinal ? processNumber : null,
       idProcedimento: insideFinal ? idProcedimento : null,
-      hints: insideFinal ? hints.slice(0, 40) : [],
       url: pageUrl,
       host: safeHost(document),
       acao: getAcao(pageUrl),
@@ -854,30 +824,6 @@
       isInsideProcess: insideFinal && !controlFinal,
       detectedAt: Date.now()
     };
-  }
-
-  function guessCurrentStepIndex(steps, hints) {
-    if (!steps?.length || !hints?.length) return -1;
-    const blob = normalize(hints.join(" | "));
-    let bestIdx = -1;
-    let bestScore = 0;
-
-    steps.forEach((step, idx) => {
-      const tokens = normalize(step.name + " " + (step.description || ""))
-        .split(/[^a-z0-9]+/)
-        .filter((t) => t.length > 3);
-      let score = 0;
-      for (const t of tokens) {
-        if (blob.includes(t)) score += 1;
-      }
-      score += idx * 0.01;
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = idx;
-      }
-    });
-
-    return bestScore >= 1 ? bestIdx : -1;
   }
 
   root.SeiFluxoDetector = {
@@ -894,7 +840,6 @@
     sanitizeProcessType,
     getIdProcedimento,
     getAcao,
-    guessCurrentStepIndex,
     scanDocuments,
     PROCESS_NUMBER_RE
   };

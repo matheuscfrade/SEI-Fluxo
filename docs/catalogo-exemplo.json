@@ -1,11 +1,12 @@
 {
   "version": 1,
   "institution": "Instituição Exemplo",
-  "updatedAt": "2026-07-20T12:00:00.000Z",
+  "updatedAt": "2026-07-21T12:00:00.000Z",
   "flows": [
     {
       "id": "flow-diarias",
       "processType": "Geral: Pedidos de Diárias e Passagens",
+      "flowName": "Diárias e passagens (padrão)",
       "description": "Fluxo demonstrativo de diárias e passagens.",
       "active": true,
       "steps": [
@@ -43,6 +44,80 @@
           "name": "Prestação de contas",
           "description": "Relatório de viagem e documentos comprobatórios.",
           "unit": "Servidor"
+        }
+      ]
+    },
+    {
+      "id": "flow-pdi-objetivo",
+      "processType": "Geral: Revisão do PDI do IFMG",
+      "flowName": "Alteração de Objetivo Estratégico do PDI",
+      "description": "Revisão do PDI para ajuste de objetivo estratégico.",
+      "active": true,
+      "steps": [
+        {
+          "id": "s1",
+          "order": 1,
+          "name": "Proposta de alteração",
+          "description": "Unidade formula a proposta de mudança no objetivo estratégico.",
+          "unit": "Unidade proponente"
+        },
+        {
+          "id": "s2",
+          "order": 2,
+          "name": "Análise da DDI / planejamento",
+          "description": "Conferência de alinhamento institucional e indicadores.",
+          "unit": "RE-DDI"
+        },
+        {
+          "id": "s3",
+          "order": 3,
+          "name": "Deliberação",
+          "description": "Aprovação nos fóruns competentes.",
+          "unit": "Colegiados / Reitoria"
+        },
+        {
+          "id": "s4",
+          "order": 4,
+          "name": "Publicação e atualização do PDI",
+          "description": "Atualização do documento e comunicação às unidades.",
+          "unit": "RE-DDI"
+        }
+      ]
+    },
+    {
+      "id": "flow-pdi-pocv",
+      "processType": "Geral: Revisão do PDI do IFMG",
+      "flowName": "Plano de Oferta de Cursos e Vagas",
+      "description": "Revisão do PDI para POCV (oferta de cursos e vagas).",
+      "active": true,
+      "steps": [
+        {
+          "id": "s1",
+          "order": 1,
+          "name": "Demanda de oferta",
+          "description": "Campus ou área propõe alteração na oferta de cursos/vagas.",
+          "unit": "Campus / área"
+        },
+        {
+          "id": "s2",
+          "order": 2,
+          "name": "Análise técnica e de vagas",
+          "description": "Consolidação de quantitativos e impacto no PDI.",
+          "unit": "RE-DDI / Ensino"
+        },
+        {
+          "id": "s3",
+          "order": 3,
+          "name": "Aprovação institucional",
+          "description": "Tramitação e deliberação da proposta.",
+          "unit": "Colegiados / Reitoria"
+        },
+        {
+          "id": "s4",
+          "order": 4,
+          "name": "Atualização do POCV no PDI",
+          "description": "Registro da oferta aprovada e divulgação.",
+          "unit": "RE-DDI"
         }
       ]
     }

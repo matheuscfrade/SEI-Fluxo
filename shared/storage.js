@@ -2,7 +2,13 @@
  * Armazenamento:
  * - FLOWS: rascunho do editor (montar e baixar JSON)
  * - REMOTE_FLOWS: união dos catálogos carregados (vários departamentos)
- * - SETTINGS.catalogSources: lista de arquivos { id, label, url }
+ * - SETTINGS.catalogSources: { id, kind, institution, department, url }
+ *
+ * Exibição no SEI: Instituição | Departamento | Nome do Fluxo
+ * - Arquivo: instituição + departamento informados na fonte
+ * - Pasta: instituição informada; departamento = nome do arquivo .json
+ * - Nome do fluxo = flowName do JSON (ou processType, se flowName vazio)
+ * - Match no SEI = processType (nome exato do Tipo)
  *
  * Conflito (mesmo tipo de processo em mais de um arquivo):
  * - Match apenas por nome exato do tipo.
@@ -23,13 +29,18 @@
     sidebarOpen: true,
     sidebarWidth: 340,
     autoDetect: true,
-    highlightKeywords: true,
     onlyOnSeiPages: true,
-    /** @type {{ id: string, label: string, url: string, kind?: 'file'|'folder'|'auto' }[]} */
+    /**
+     * @type {{
+     *   id: string,
+     *   kind?: 'file'|'folder'|'auto',
+     *   institution?: string,
+     *   department?: string,
+     *   url: string
+     * }[]}
+     */
     catalogSources: [],
-    institutionName: "",
-    /** Opcional: chave da API Google Drive (só leitura) para listar pastas com mais confiabilidade */
-    driveApiKey: ""
+    institutionName: ""
   };
 
   function generateId(prefix = "id") {
@@ -38,17 +49,43 @@
       .slice(2, 8)}`;
   }
 
+  /** Junta partes não vazias com " | " → IFMG | RE-DDI | Nome do fluxo */
+  function joinPathParts(...parts) {
+    return parts
+      .map((p) => String(p || "").trim())
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  function formatOriginLabel(institution, department) {
+    return joinPathParts(institution, department);
+  }
+
+  function formatFlowPath(institution, department, flowTitle) {
+    return joinPathParts(institution, department, flowTitle);
+  }
+
+  /** Título do fluxo na UI: nome específico ou tipo SEI */
+  function flowDisplayName(flow) {
+    if (root.SeiFluxoCatalog?.flowDisplayName) {
+      return root.SeiFluxoCatalog.flowDisplayName(flow);
+    }
+    const specific = String(flow?.flowName || "").trim();
+    if (specific) return specific;
+    return String(flow?.processType || "").trim() || "Fluxo";
+  }
+
   /**
    * Mantém entradas mesmo sem URL (rascunho da lista na UI).
    * Sync usa só as que tiverem url preenchida.
+   *
+   * Migração: campo antigo `label` vira
+   * - pasta → institution
+   * - arquivo → department
    */
   function normalizeSource(raw, index) {
     if (!raw || typeof raw !== "object") return null;
     const url = String(raw.url || "").trim();
-    const label =
-      String(raw.label || "").trim() || `Item ${index + 1}`;
-    if (!url && !String(raw.label || "").trim() && !raw.id) return null;
-    if (!url && !label) return null;
 
     let kind = raw.kind === "folder" || raw.kind === "file" ? raw.kind : "auto";
     if (kind === "auto" && url && root.SeiFluxoCatalog?.detectSourceKind) {
@@ -57,9 +94,32 @@
       kind = /\/folders\//i.test(url) ? "folder" : "file";
     }
 
+    let institution = String(raw.institution || "").trim();
+    let department = String(raw.department || "").trim();
+    const legacyLabel = String(raw.label || "").trim();
+
+    if (legacyLabel) {
+      if (kind === "folder") {
+        if (!institution) institution = legacyLabel;
+      } else if (!department) {
+        department = legacyLabel;
+      }
+    }
+
+    const hasIdentity = !!(institution || department || legacyLabel || raw.id);
+    if (!url && !hasIdentity) return null;
+
+    if (!institution && kind === "folder") {
+      institution = `Instituição ${index + 1}`;
+    }
+    if (!department && kind !== "folder") {
+      department = `Departamento ${index + 1}`;
+    }
+
     return {
       id: String(raw.id || generateId("src")),
-      label,
+      institution,
+      department: kind === "folder" ? "" : department,
       url,
       kind
     };
@@ -78,12 +138,17 @@
 
     if (!sources.length && s.catalogUrl) {
       sources = [
-        {
-          id: generateId("src"),
-          label: s.institutionName || "Instituição",
-          url: String(s.catalogUrl).trim()
-        }
-      ];
+        normalizeSource(
+          {
+            id: generateId("src"),
+            institution: s.institutionName || "Instituição",
+            department: s.institutionName ? "" : "Departamento",
+            url: String(s.catalogUrl).trim(),
+            kind: "file"
+          },
+          0
+        )
+      ].filter(Boolean);
     }
 
     s.catalogSources = sources;
@@ -211,13 +276,23 @@
     const byTypeKey = new Map();
 
     batches.forEach((batch, sourcePriority) => {
-      const label = batch.label || `Fonte ${sourcePriority + 1}`;
+      const institution = String(batch.institution || "").trim();
+      const department = String(batch.department || "").trim();
+      const origin =
+        formatOriginLabel(institution, department) ||
+        batch.label ||
+        `Fonte ${sourcePriority + 1}`;
       const url = batch.url || "";
       (batch.flows || []).forEach((f) => {
+        const title = flowDisplayName(f);
         const flow = {
           ...f,
           aliases: undefined,
-          _sourceLabel: label,
+          _sourceInstitution: institution,
+          _sourceDepartment: department,
+          _sourceLabel: origin,
+          _flowTitle: title,
+          _displayPath: formatFlowPath(institution, department, title),
           _sourceUrl: url,
           _sourcePriority: sourcePriority
         };
@@ -234,8 +309,11 @@
         byTypeKey.get(key).push({
           flow,
           sourcePriority,
-          sourceLabel: label,
-          processType: flow.processType
+          sourceLabel: origin,
+          displayPath: flow._displayPath,
+          flowTitle: title,
+          processType: flow.processType,
+          flowName: flow.flowName || ""
         });
       });
     });
@@ -249,14 +327,25 @@
         seen.add(item.flow.id);
         entries.push({
           processType: item.processType,
+          flowName: item.flowName,
+          flowTitle: item.flowTitle,
           sourceLabel: item.sourceLabel,
+          displayPath: item.displayPath,
           sourcePriority: item.sourcePriority,
           steps: (item.flow.steps || []).length,
           flowId: item.flow.id
         });
       }
       if (entries.length > 1) {
-        entries.sort((a, b) => a.sourcePriority - b.sourcePriority);
+        entries.sort((a, b) => {
+          if (a.sourcePriority !== b.sourcePriority) {
+            return a.sourcePriority - b.sourcePriority;
+          }
+          return String(a.flowTitle || "").localeCompare(
+            String(b.flowTitle || ""),
+            "pt-BR"
+          );
+        });
         conflicts.push({
           typeKey: key,
           displayName: entries[0].processType,
@@ -304,10 +393,13 @@
         const pa = typeof a._sourcePriority === "number" ? a._sourcePriority : 99;
         const pb = typeof b._sourcePriority === "number" ? b._sourcePriority : 99;
         if (pa !== pb) return pa - pb;
+        const ta = flowDisplayName(a);
+        const tb = flowDisplayName(b);
+        const byName = String(ta).localeCompare(String(tb), "pt-BR");
+        if (byName) return byName;
         const sa = (a.steps || []).length;
         const sb = (b.steps || []).length;
-        if (sb !== sa) return sb - sa;
-        return String(a.processType).localeCompare(String(b.processType), "pt-BR");
+        return sb - sa;
       });
 
     if (!candidates.length) {
@@ -383,7 +475,6 @@
     const batches = [];
     const sourceResults = [];
     const errors = [];
-    const apiKey = String(settings.driveApiKey || "").trim();
 
     for (let i = 0; i < sources.length; i++) {
       const src = sources[i];
@@ -394,11 +485,11 @@
           : "file";
 
       if (kind === "folder") {
+        const institution = src.institution || `Instituição ${i + 1}`;
         try {
           const folderResult = await root.SeiFluxoCatalog.fetchCatalogsFromFolder(
             src.url,
-            src.label || "",
-            apiKey || null
+            institution
           );
           for (const b of folderResult.batches) {
             batches.push(b);
@@ -406,7 +497,9 @@
           for (const e of folderResult.errors || []) {
             errors.push({
               id: src.id,
-              label: e.label || src.label,
+              label: e.label || formatOriginLabel(institution, e.department),
+              institution,
+              department: e.department || "",
               url: e.url || src.url,
               ok: false,
               error: e.error,
@@ -419,7 +512,9 @@
           );
           sourceResults.push({
             id: src.id,
-            label: src.label || "Pasta",
+            label: institution,
+            institution,
+            department: "",
             url: src.url,
             kind: "folder",
             ok: true,
@@ -430,7 +525,8 @@
         } catch (err) {
           errors.push({
             id: src.id,
-            label: src.label,
+            label: institution,
+            institution,
             url: src.url,
             kind: "folder",
             ok: false,
@@ -438,7 +534,8 @@
           });
           sourceResults.push({
             id: src.id,
-            label: src.label,
+            label: institution,
+            institution,
             url: src.url,
             kind: "folder",
             ok: false,
@@ -450,30 +547,36 @@
       }
 
       // Arquivo único
+      const institution = src.institution || "";
+      const department =
+        src.department ||
+        `Departamento ${i + 1}`;
+      const origin = formatOriginLabel(institution, department) || department;
       try {
         const result = await root.SeiFluxoCatalog.fetchCatalogFromUrl(src.url);
-        const label =
-          src.label ||
-          result.catalog.institution ||
-          `Departamento ${i + 1}`;
         batches.push({
-          label,
+          institution,
+          department,
+          label: origin,
           url: src.url,
           flows: result.catalog.flows
         });
         sourceResults.push({
           id: src.id,
-          label,
+          label: origin,
+          institution,
+          department,
           url: src.url,
           kind: "file",
           ok: true,
-          flowCount: result.catalog.flows.length,
-          institution: result.catalog.institution || ""
+          flowCount: result.catalog.flows.length
         });
       } catch (err) {
         errors.push({
           id: src.id,
-          label: src.label,
+          label: origin,
+          institution,
+          department,
           url: src.url,
           kind: "file",
           ok: false,
@@ -481,7 +584,9 @@
         });
         sourceResults.push({
           id: src.id,
-          label: src.label,
+          label: origin,
+          institution,
+          department,
           url: src.url,
           kind: "file",
           ok: false,
@@ -533,6 +638,10 @@
     findFlowForProcessType,
     getFlowChoice,
     setFlowChoice,
+    joinPathParts,
+    formatOriginLabel,
+    formatFlowPath,
+    flowDisplayName,
     normalize,
     generateId
   };

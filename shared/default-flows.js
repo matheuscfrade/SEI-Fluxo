@@ -5,7 +5,8 @@
  * Estrutura de um fluxo:
  * {
  *   id: string,
- *   processType: string,      // nome EXATO do "Tipo do Processo" no SEI
+ *   processType: string,      // nome EXATO do "Tipo do Processo" no SEI (chave de match)
+ *   flowName?: string,        // nome específico do fluxo (quando o mesmo tipo tem vários)
  *   description: string,
  *   active: boolean,
  *   steps: [

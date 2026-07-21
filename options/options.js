@@ -7,7 +7,7 @@
   let flows = [];
   let selectedId = null;
   let draftSteps = [];
-  /** @type {{ id: string, label: string, url: string }[]} */
+  /** @type {{ id: string, kind?: string, institution?: string, department?: string, url: string }[]} */
   let catalogSources = [];
 
   const els = {
@@ -18,6 +18,7 @@
     editorTitle: $("#editorTitle"),
     fldActive: $("#fldActive"),
     fldProcessType: $("#fldProcessType"),
+    fldFlowName: $("#fldFlowName"),
     fldDescription: $("#fldDescription"),
     stepsList: $("#stepsList"),
     btnNew: $("#btnNew"),
@@ -32,7 +33,6 @@
     btnAddSource: $("#btnAddSource"),
     btnAddFolder: $("#btnAddFolder"),
     btnSync: $("#btnSync"),
-    fldDriveApiKey: $("#fldDriveApiKey"),
     stCatalog: $("#stCatalog"),
     stSourceCount: $("#stSourceCount"),
     stRemoteCount: $("#stRemoteCount"),
@@ -73,33 +73,46 @@
     tab.addEventListener("click", () => switchTab(tab.getAttribute("data-tab")));
   });
 
-  /* ---------- Fontes (vários arquivos) ---------- */
+  /* ---------- Fontes (arquivo / pasta) ---------- */
+  // Exibição no SEI: Instituição | Departamento | Nome do Fluxo
 
-  /** Lê os campos da tela (evita perder link digitado antes do save). */
-  function placeholdersForKind(kind) {
-    const isFolder = kind === "folder";
-    return {
-      label: isFolder
-        ? "Nome da instituição/pasta (ex.: IFMG)"
-        : "Nome do departamento (ex.: RH)",
-      url: isFolder
-        ? "https://drive.google.com/drive/folders/…"
-        : "https://drive.google.com/file/d/…/view"
-    };
-  }
-
-  function applyPlaceholders(row, kind) {
-    const ph = placeholdersForKind(kind);
-    const labelEl = row.querySelector('[data-k="label"]');
-    const urlEl = row.querySelector('[data-k="url"]');
-    if (labelEl) labelEl.placeholder = ph.label;
-    if (urlEl) urlEl.placeholder = ph.url;
-  }
-
-  /** Resolve tipo: dropdown tem prioridade; link de pasta força "folder". */
   function resolveKind(kind, url) {
     if (/\/folders\//i.test(String(url || ""))) return "folder";
     return kind === "folder" ? "folder" : "file";
+  }
+
+  function applyKindUi(row, kind) {
+    const isFolder = kind === "folder";
+    const deptWrap = row.querySelector("[data-dept-wrap]");
+    const instEl = row.querySelector('[data-k="institution"]');
+    const deptEl = row.querySelector('[data-k="department"]');
+    const urlEl = row.querySelector('[data-k="url"]');
+    const hintEl = row.querySelector("[data-folder-hint]");
+    if (deptWrap) deptWrap.classList.toggle("hidden", isFolder);
+    if (hintEl) hintEl.classList.toggle("hidden", !isFolder);
+    if (instEl) instEl.placeholder = "Instituição (ex.: IFMG)";
+    if (deptEl) deptEl.placeholder = "Departamento (ex.: RE-DDI)";
+    if (urlEl) {
+      urlEl.placeholder = isFolder
+        ? "https://drive.google.com/drive/folders/…"
+        : "https://drive.google.com/file/d/…/view";
+    }
+  }
+
+  function readSourceFromRow(row, index, prev) {
+    const instInput = row.querySelector("[data-k='institution']");
+    const deptInput = row.querySelector("[data-k='department']");
+    const urlInput = row.querySelector("[data-k='url']");
+    const kindSelect = row.querySelector("[data-k='kind']");
+    const url = String(urlInput?.value || "").trim();
+    const kind = resolveKind(kindSelect?.value || prev?.kind || "file", url);
+    return {
+      id: prev?.id || row.dataset.sourceId || SeiFluxoStorage.generateId("src"),
+      institution: String(instInput?.value || "").trim(),
+      department: kind === "folder" ? "" : String(deptInput?.value || "").trim(),
+      url,
+      kind
+    };
   }
 
   function collectSourcesFromDom() {
@@ -107,7 +120,8 @@
     if (!rows || !rows.length) {
       return (catalogSources || []).map((s, i) => ({
         id: s.id || SeiFluxoStorage.generateId("src"),
-        label: String(s.label || `Item ${i + 1}`).trim(),
+        institution: String(s.institution || "").trim(),
+        department: s.kind === "folder" ? "" : String(s.department || "").trim(),
         url: String(s.url || "").trim(),
         kind: resolveKind(s.kind, s.url)
       }));
@@ -115,20 +129,7 @@
 
     const list = [];
     rows.forEach((row, index) => {
-      const labelInput = row.querySelector("[data-k='label']");
-      const urlInput = row.querySelector("[data-k='url']");
-      const kindSelect = row.querySelector("[data-k='kind']");
-      const prev = catalogSources[index];
-      const url = String(urlInput?.value || "").trim();
-      const kind = resolveKind(kindSelect?.value || prev?.kind || "file", url);
-      list.push({
-        id: prev?.id || row.dataset.sourceId || SeiFluxoStorage.generateId("src"),
-        label:
-          String(labelInput?.value || "").trim() ||
-          (kind === "folder" ? `Pasta ${index + 1}` : `Departamento ${index + 1}`),
-        url,
-        kind
-      });
+      list.push(readSourceFromRow(row, index, catalogSources[index]));
     });
     catalogSources = list;
     return list;
@@ -145,7 +146,6 @@
 
     catalogSources.forEach((src, index) => {
       const kind = src.kind === "folder" ? "folder" : "file";
-      const ph = placeholdersForKind(kind);
       const row = document.createElement("div");
       row.className = "source-row";
       row.dataset.sourceId = src.id || "";
@@ -157,9 +157,15 @@
               <option value="file">Arquivo</option>
               <option value="folder">Pasta</option>
             </select>
-            <input type="text" data-k="label" placeholder="${ph.label}" autocomplete="off" />
+            <input type="text" data-k="institution" placeholder="Instituição (ex.: IFMG)" autocomplete="organization" />
           </div>
-          <input type="text" data-k="url" placeholder="${ph.url}" autocomplete="off" spellcheck="false" />
+          <div class="source-meta-row" data-dept-wrap>
+            <input type="text" data-k="department" placeholder="Departamento (ex.: RE-DDI)" autocomplete="off" />
+          </div>
+          <p class="source-folder-hint hidden" data-folder-hint>
+            Departamento = nome de cada <code>.json</code> na pasta (ex.: <code>RE-DDI.json</code> → RE-DDI)
+          </p>
+          <input type="text" data-k="url" placeholder="Link do Drive" autocomplete="off" spellcheck="false" />
         </div>
         <div class="source-actions">
           <button type="button" class="icon-btn" data-act="up" title="Mover para cima">↑</button>
@@ -168,55 +174,58 @@
         </div>
       `;
       const kindEl = row.querySelector('[data-k="kind"]');
-      const labelEl = row.querySelector('[data-k="label"]');
+      const instEl = row.querySelector('[data-k="institution"]');
+      const deptEl = row.querySelector('[data-k="department"]');
       const urlEl = row.querySelector('[data-k="url"]');
       kindEl.value = kind;
-      labelEl.value = src.label || "";
+      instEl.value = src.institution || "";
+      deptEl.value = src.department || "";
       urlEl.value = src.url || "";
+      applyKindUi(row, kind);
 
-      // Dropdown: grava na memória e atualiza placeholders SEM recriar a linha
-      // (recriar no change cancelava a seleção do usuário)
+      const syncMemory = () => {
+        const next = readSourceFromRow(row, index, src);
+        Object.assign(src, next);
+        applyKindUi(row, next.kind);
+        if (kindEl.value !== next.kind) kindEl.value = next.kind;
+      };
+
       kindEl.addEventListener("change", () => {
-        const newKind = kindEl.value === "folder" ? "folder" : "file";
-        src.kind = newKind;
-        src.label = labelEl.value;
-        src.url = urlEl.value;
-        // Se o link é de pasta, mantém pasta mesmo se tentarem forçar arquivo
+        syncMemory();
         if (/\/folders\//i.test(src.url)) {
           src.kind = "folder";
           kindEl.value = "folder";
+          applyKindUi(row, "folder");
         }
-        applyPlaceholders(row, src.kind);
         persistSources();
       });
 
-      labelEl.addEventListener("input", () => {
-        src.label = labelEl.value;
+      instEl.addEventListener("input", () => {
+        src.institution = instEl.value;
       });
-      labelEl.addEventListener("change", () => {
-        src.label = labelEl.value;
+      instEl.addEventListener("change", () => {
+        syncMemory();
+        persistSources();
+      });
+
+      deptEl.addEventListener("input", () => {
+        src.department = deptEl.value;
+      });
+      deptEl.addEventListener("change", () => {
+        syncMemory();
         persistSources();
       });
 
       urlEl.addEventListener("input", () => {
         src.url = urlEl.value;
-        // Colou link de pasta → ajusta o tipo automaticamente
         if (/\/folders\//i.test(src.url) && kindEl.value !== "folder") {
           kindEl.value = "folder";
           src.kind = "folder";
-          applyPlaceholders(row, "folder");
+          applyKindUi(row, "folder");
         }
       });
       urlEl.addEventListener("change", () => {
-        src.url = urlEl.value;
-        src.label = labelEl.value;
-        if (/\/folders\//i.test(src.url)) {
-          src.kind = "folder";
-          kindEl.value = "folder";
-          applyPlaceholders(row, "folder");
-        } else {
-          src.kind = kindEl.value === "folder" ? "folder" : "file";
-        }
+        syncMemory();
         persistSources();
       });
 
@@ -256,16 +265,18 @@
     catalogSources = catalogSources
       .map((s, i) => ({
         id: s.id || SeiFluxoStorage.generateId("src"),
-        label: String(s.label || `Item ${i + 1}`).trim(),
+        institution: String(s.institution || "").trim(),
+        department:
+          resolveKind(s.kind, s.url) === "folder"
+            ? ""
+            : String(s.department || "").trim(),
         url: String(s.url || "").trim(),
         kind: resolveKind(s.kind, s.url)
       }))
-      .filter((s) => s.url || s.label);
+      .filter((s) => s.url || s.institution || s.department);
 
-    const apiKey = els.fldDriveApiKey?.value?.trim() || "";
     await SeiFluxoStorage.saveSettings({
-      catalogSources,
-      driveApiKey: apiKey
+      catalogSources
     });
     return catalogSources;
   }
@@ -275,9 +286,8 @@
     const isFolder = kind === "folder";
     catalogSources.push({
       id: SeiFluxoStorage.generateId("src"),
-      label: isFolder
-        ? `Pasta ${catalogSources.filter((s) => s.kind === "folder").length + 1}`
-        : `Departamento ${catalogSources.filter((s) => s.kind !== "folder").length + 1}`,
+      institution: "",
+      department: isFolder ? "" : "",
       url: "",
       kind: isFolder ? "folder" : "file"
     });
@@ -285,7 +295,7 @@
     persistSources();
     const rows = els.sourcesList.querySelectorAll(".source-row");
     const last = rows[rows.length - 1];
-    last?.querySelector("[data-k='url']")?.focus();
+    last?.querySelector('[data-k="institution"]')?.focus();
   }
 
   async function refreshCatalogStatus(opts = {}) {
@@ -298,9 +308,6 @@
       catalogSources = (settings.catalogSources || []).map((s) => ({ ...s }));
       if (!catalogSources.length) catalogSources = [];
       renderSources();
-      if (els.fldDriveApiKey) {
-        els.fldDriveApiKey.value = settings.driveApiKey || "";
-      }
     }
 
     const nSrc = (settings.catalogSources || []).filter((s) => s.url).length;
@@ -334,12 +341,18 @@
         const div = document.createElement("div");
         div.className = "conflict-item";
         const lines = (c.entries || [])
-          .map(
-            (e) =>
-              `• ${e.sourceLabel} — “${e.processType}” (${e.steps} etapa${
-                e.steps === 1 ? "" : "s"
-              })`
-          )
+          .map((e) => {
+            const path =
+              e.displayPath ||
+              [
+                e.sourceLabel,
+                e.flowTitle || e.flowName || e.processType
+              ]
+                .filter(Boolean)
+                .join(" | ") ||
+              e.processType;
+            return `• ${path} (${e.steps} etapa${e.steps === 1 ? "" : "s"})`;
+          })
           .join("<br>");
         div.innerHTML = `<strong></strong><div class="conflict-detail"></div>`;
         div.querySelector("strong").textContent =
@@ -364,16 +377,22 @@
     remote
       .slice()
       .sort((a, b) =>
-        String(a.processType).localeCompare(String(b.processType), "pt-BR")
+        String(a._displayPath || a.processType).localeCompare(
+          String(b._displayPath || b.processType),
+          "pt-BR"
+        )
       )
       .forEach((f) => {
         const div = document.createElement("div");
         div.className = "remote-item";
         const n = (f.steps || []).length;
-        const src = f._sourceLabel ? ` · ${f._sourceLabel}` : "";
+        const path =
+          f._displayPath ||
+          [f._sourceLabel, f.processType].filter(Boolean).join(" | ") ||
+          f.processType;
         div.innerHTML = "<strong></strong><span></span>";
-        div.querySelector("strong").textContent = f.processType;
-        div.querySelector("span").textContent = `${n} etapa(s)${src}${
+        div.querySelector("strong").textContent = path;
+        div.querySelector("span").textContent = `${n} etapa(s)${
           f.active === false ? " · inativo" : ""
         }`;
         els.remoteList.appendChild(div);
@@ -387,7 +406,7 @@
       const valid = sources.filter((s) => String(s.url || "").trim());
       if (!valid.length) {
         toast(
-          "Cole o link do Google Drive no campo de cada arquivo (não só o nome do departamento).",
+          "Cole o link do Google Drive em cada fonte (além de instituição/departamento).",
           "err"
         );
         return;
@@ -439,7 +458,7 @@
       .filter((f) => {
         if (!q) return true;
         return normalizeSearch(
-          [f.processType, f.description].join(" ")
+          [f.processType, f.flowName, f.description].join(" ")
         ).includes(q);
       });
 
@@ -457,13 +476,23 @@
         flow.active === false ? "inactive" : ""
       }`;
       const stepsCount = (flow.steps || []).length;
+      const title =
+        (SeiFluxoCatalog.flowDisplayName &&
+          SeiFluxoCatalog.flowDisplayName(flow)) ||
+        flow.flowName ||
+        flow.processType;
+      const metaParts = [];
+      if (flow.flowName && flow.flowName !== flow.processType) {
+        metaParts.push(flow.processType);
+      }
+      metaParts.push(`${stepsCount} etapa(s)`);
       btn.innerHTML = `
         <span class="flow-item-title"></span>
         <span class="flow-item-meta"></span>
         <span class="pill ${flow.active === false ? "off" : "on"}"></span>
       `;
-      btn.querySelector(".flow-item-title").textContent = flow.processType;
-      btn.querySelector(".flow-item-meta").textContent = `${stepsCount} etapa(s)`;
+      btn.querySelector(".flow-item-title").textContent = title;
+      btn.querySelector(".flow-item-meta").textContent = metaParts.join(" · ");
       btn.querySelector(".pill").textContent =
         flow.active === false ? "Inativo" : "Ativo";
       btn.addEventListener("click", () => openEditor(flow));
@@ -486,6 +515,7 @@
     els.editorTitle.textContent = flow._isNew ? "Novo fluxo" : "Editar fluxo";
     els.fldActive.checked = flow.active !== false;
     els.fldProcessType.value = flow.processType || "";
+    if (els.fldFlowName) els.fldFlowName.value = flow.flowName || "";
     els.fldDescription.value = flow.description || "";
     draftSteps = (flow.steps || []).map((s, i) => ({
       id: s.id || SeiFluxoStorage.generateId("step"),
@@ -610,6 +640,7 @@
     return {
       id: selectedId || SeiFluxoStorage.generateId("flow"),
       processType,
+      flowName: (els.fldFlowName?.value || "").trim(),
       description: els.fldDescription.value.trim(),
       active: els.fldActive.checked,
       steps
@@ -633,7 +664,12 @@
     if (!selectedId) return;
     const flow = flows.find((f) => f.id === selectedId);
     if (!flow) return;
-    if (!confirm(`Excluir “${flow.processType}”?`)) return;
+    const delTitle =
+      (SeiFluxoCatalog.flowDisplayName &&
+        SeiFluxoCatalog.flowDisplayName(flow)) ||
+      flow.flowName ||
+      flow.processType;
+    if (!confirm(`Excluir “${delTitle}”?`)) return;
     flows = flows.filter((f) => f.id !== selectedId);
     await SeiFluxoStorage.saveFlows(flows);
     toast("Excluído.");
@@ -646,6 +682,7 @@
       id: SeiFluxoStorage.generateId("flow"),
       _isNew: true,
       processType: "",
+      flowName: "",
       description: "",
       active: true,
       steps: [
@@ -708,7 +745,6 @@
     els.btnAddSource?.addEventListener("click", () => addSource("file"));
     els.btnAddFolder?.addEventListener("click", () => addSource("folder"));
     els.btnSync?.addEventListener("click", syncCatalog);
-    els.fldDriveApiKey?.addEventListener("change", persistSources);
 
     els.search?.addEventListener("input", renderList);
     els.btnNew?.addEventListener("click", newFlow);

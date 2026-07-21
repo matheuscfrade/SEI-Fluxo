@@ -13,11 +13,9 @@ const DEFAULT_SETTINGS = {
   sidebarOpen: true,
   sidebarWidth: 340,
   autoDetect: true,
-  highlightKeywords: true,
   onlyOnSeiPages: true,
   catalogSources: [],
-  institutionName: "",
-  driveApiKey: ""
+  institutionName: ""
 };
 
 async function ensureSeeded() {
@@ -62,11 +60,6 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "SEI_FLUXO_PING") {
     sendResponse({ ok: true, version: chrome.runtime.getManifest().version });
-    return true;
-  }
-  if (message?.type === "SEI_FLUXO_OPEN_OPTIONS") {
-    chrome.runtime.openOptionsPage();
-    sendResponse({ ok: true });
     return true;
   }
   return false;

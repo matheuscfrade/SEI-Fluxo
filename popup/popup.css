@@ -88,7 +88,21 @@ main { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   text-align: center;
 }
 .stats span { display: block; font-size: 18px; color: #0f172a; }
-footer { padding: 0 14px 14px; }
+footer { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.credits {
+  text-align: center;
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.4;
+}
+.credits strong { color: #334155; font-weight: 700; }
+.credits a {
+  color: #0b5cab;
+  font-weight: 600;
+  text-decoration: none;
+  word-break: break-all;
+}
+.credits a:hover { text-decoration: underline; }
 .btn {
   width: 100%;
   border: 0;
