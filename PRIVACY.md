@@ -1,6 +1,6 @@
 # Política de Privacidade — SEI Fluxo
 
-**Última atualização:** 21 de julho de 2026  
+**Última atualização:** 21 de julho de 2026 (v1.9.0 — hosts SEI sob demanda)  
 **Desenvolvedor:** Matheus Costa Frade  
 **Extensão:** SEI Fluxo (Chrome)  
 **Repositório:** https://github.com/matheuscfrade/SEI-Fluxo  
@@ -29,6 +29,7 @@ Esses dados **não são enviados** a servidores do desenvolvedor. São usados ap
 
 Nas **Opções** da extensão, você pode informar:
 
+- **URL(s) raiz do SEI** da sua instituição (obrigatório para a extensão atuar nas páginas do SEI);
 - links de **arquivos ou pastas do Google Drive** (catálogos JSON);
 - nomes de **instituição** e **departamento**;
 - rascunhos de fluxos no editor local (para baixar JSON);
@@ -91,8 +92,9 @@ O desenvolvedor **não opera** servidor próprio de coleta de telemetria para es
 
 ## 8. Permissões (resumo)
 
-- **`storage`**: salvar catálogos, preferências e escolhas do usuário no navegador.
-- **Acesso a páginas da web (content scripts)**: detectar telas do SEI em instalações de diferentes órgãos (domínios variados) e exibir a barra lateral **somente** quando o SEI for identificado e um processo estiver aberto.
+- **`storage`**: salvar catálogos, preferências, URLs do SEI e escolhas do usuário no navegador.
+- **`scripting`**: registrar e injetar a barra lateral **apenas** nos sites SEI que o usuário configurou e autorizou.
+- **Permissão de host opcional (por site)**: solicitada em tempo de execução somente para a(s) URL(s) raiz do SEI informadas pelo usuário. A extensão **não** injeta scripts em todas as páginas da internet.
 - **Host permissions do Google Drive / Googleusercontent**: baixar os JSON de catálogo que o usuário configurou.
 
 ## 9. Crianças

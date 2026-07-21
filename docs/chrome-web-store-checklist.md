@@ -10,8 +10,8 @@
 | Sem remote code (MV3) | OK | Só JSON de dados do Drive |
 | Ícones 16/48/128 | OK | Presentes e com tamanho correto |
 | Permissões mínimas | Ajustado em 1.8.4 | Removidos `tabs`, `scripting`, `activeTab` (não usados) |
-| Host permissions | Ajustado em 1.8.4 | Restrito ao Google Drive / Googleusercontent |
-| Content scripts amplos | Atenção | Necessário por multi-domínio do SEI — justificar no painel |
+| Host permissions | Ajustado em 1.8.4+ | Drive fixo; SEI via optional_host_permissions sob demanda |
+| Content scripts amplos | Resolvido em 1.9.0 | Usuário informa URL raiz do SEI; scripts só nesses hosts |
 | Política de privacidade | Preparada | `PRIVACY.md` — publicar no GitHub e colar URL |
 | Screenshots 1280×800 | Pendente (você) | Capturar UI real (SEI + opções) |
 | Small promo 440×280 | Pendente (você) | Criar arte / use gerador |
@@ -20,12 +20,11 @@
 
 **Conclusão:** o projeto está **quase apto**. Com o pacote 1.8.4, privacidade e justificativas, a parte de **código/políticas** está em boa forma. A publicação **não completa** só no código: falta conta de desenvolvedor, imagens da loja e envio no dashboard.
 
-### Risco principal de rejeição
+### Risco principal de rejeição (mitigado em 1.9.0)
 
-**Content scripts em todas as páginas HTTP(S).**  
-Mitigação já no produto: só monta UI em SEI detectado e dentro de processo.  
-No dashboard, use a justificativa de `docs/chrome-web-store-listing.md`.  
-Se a Google rejeitar por escopo amplo, planos B: lista de hosts por instituição ou `optional_host_permissions` + ativação por site.
+**Antes:** content scripts em todas as páginas.  
+**Agora:** o usuário informa a URL raiz do SEI nas Opções; a extensão solicita permissão só para esse host e registra content scripts dinamicamente.  
+Justificativa pronta em `docs/chrome-web-store-listing.md` (optional_host_permissions + scripting).
 
 ### Risco secundário
 

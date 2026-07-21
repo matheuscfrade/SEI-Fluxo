@@ -31,6 +31,12 @@
     autoDetect: true,
     onlyOnSeiPages: true,
     /**
+     * URLs raiz do SEI onde a extensão pode atuar (obrigatório).
+     * Ex.: ["https://sei.instituicao.edu.br"]
+     * @type {string[]}
+     */
+    seiSites: [],
+    /**
      * @type {{
      *   id: string,
      *   kind?: 'file'|'folder'|'auto',
@@ -125,7 +131,7 @@
     };
   }
 
-  /** Migra catalogUrl antigo → catalogSources[] */
+  /** Migra catalogUrl antigo → catalogSources[] e normaliza seiSites */
   function normalizeSettings(raw) {
     const s = { ...DEFAULT_SETTINGS, ...(raw || {}) };
     delete s.useRemoteCatalog;
@@ -153,6 +159,16 @@
 
     s.catalogSources = sources;
     delete s.catalogUrl;
+
+    // URLs raiz do SEI (obrigatórias para content scripts)
+    if (root.SeiFluxoSites?.baseUrlsFromSites) {
+      s.seiSites = root.SeiFluxoSites.baseUrlsFromSites(s.seiSites || []);
+    } else {
+      s.seiSites = Array.isArray(s.seiSites)
+        ? s.seiSites.map((x) => String(x || "").trim()).filter(Boolean)
+        : [];
+    }
+
     return s;
   }
 

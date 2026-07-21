@@ -29,6 +29,11 @@
     fileImport: $("#fileImport"),
     version: $("#version"),
     toast: $("#toast"),
+    fldSeiSites: $("#fldSeiSites"),
+    btnSaveSeiSites: $("#btnSaveSeiSites"),
+    stSeiSites: $("#stSeiSites"),
+    stSeiPerm: $("#stSeiPerm"),
+    stSeiActive: $("#stSeiActive"),
     sourcesList: $("#sourcesList"),
     btnAddSource: $("#btnAddSource"),
     btnAddFolder: $("#btnAddFolder"),
@@ -42,6 +47,9 @@
     conflictsCard: $("#conflictsCard"),
     conflictsList: $("#conflictsList")
   };
+
+  const DRIVE_ORIGIN_RE =
+    /drive\.google\.com|docs\.google\.com|googleusercontent\.com/i;
 
   function toast(msg, type = "ok") {
     els.toast.textContent = msg;
@@ -72,6 +80,180 @@
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => switchTab(tab.getAttribute("data-tab")));
   });
+
+  /* ---------- Sites SEI (obrigatório) ---------- */
+
+  function readSeiSitesFromDom() {
+    const text = els.fldSeiSites?.value || "";
+    return SeiFluxoSites.parseSeiSites(text);
+  }
+
+  async function refreshSeiSitesStatus() {
+    const settings = await SeiFluxoStorage.getSettings();
+    const sites = SeiFluxoSites.parseSeiSites(settings.seiSites || []);
+    if (els.fldSeiSites && document.activeElement !== els.fldSeiSites) {
+      els.fldSeiSites.value = sites.map((s) => s.baseUrl).join("\n");
+    }
+
+    let status = null;
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: "SEI_FLUXO_SITES_STATUS"
+      });
+      status = res?.status || null;
+    } catch (_) {
+      status = null;
+    }
+
+    const list = status?.sites?.length
+      ? status.sites
+      : sites.map((s) => s.baseUrl);
+
+    if (els.stSeiSites) {
+      if (!list.length) {
+        els.stSeiSites.textContent = "nenhum — informe a URL raiz";
+        els.stSeiSites.className = "warn";
+      } else {
+        els.stSeiSites.textContent = list.join(" · ");
+        els.stSeiSites.className = "ok";
+      }
+    }
+
+    if (els.stSeiPerm) {
+      if (!list.length) {
+        els.stSeiPerm.textContent = "—";
+        els.stSeiPerm.className = "";
+      } else if (status?.missing?.length) {
+        els.stSeiPerm.textContent = "pendente — clique em Salvar e autorizar";
+        els.stSeiPerm.className = "warn";
+      } else if (status?.granted?.length) {
+        els.stSeiPerm.textContent = "concedida";
+        els.stSeiPerm.className = "ok";
+      } else {
+        els.stSeiPerm.textContent = "desconhecida";
+        els.stSeiPerm.className = "warn";
+      }
+    }
+
+    if (els.stSeiActive) {
+      if (status?.active) {
+        els.stSeiActive.textContent = "ativa nestes sites";
+        els.stSeiActive.className = "ok";
+      } else if (list.length) {
+        els.stSeiActive.textContent = "inativa — autorize o acesso";
+        els.stSeiActive.className = "warn";
+      } else {
+        els.stSeiActive.textContent = "inativa";
+        els.stSeiActive.className = "warn";
+      }
+    }
+
+    return status;
+  }
+
+  /**
+   * Revoga permissões de host SEI antigas que não estão mais na lista
+   * (não mexe no Drive).
+   */
+  async function reconcileHostPermissions(newPatterns) {
+    let all;
+    try {
+      all = await chrome.permissions.getAll();
+    } catch (_) {
+      return;
+    }
+    const current = (all.origins || []).filter((o) => !DRIVE_ORIGIN_RE.test(o));
+    const keep = new Set(newPatterns);
+    const toRemove = current.filter((o) => !keep.has(o));
+    if (toRemove.length) {
+      try {
+        await chrome.permissions.remove({ origins: toRemove });
+      } catch (_) {
+        /* ignore */
+      }
+    }
+  }
+
+  async function saveAndActivateSeiSites() {
+    const sites = readSeiSitesFromDom();
+    if (!sites.length) {
+      const raw = String(els.fldSeiSites?.value || "").trim();
+      if (raw) {
+        toast(
+          "URL inválida. Use algo como https://sei.sua-instituicao.gov.br",
+          "err"
+        );
+      } else {
+        toast("Informe ao menos uma URL raiz do SEI.", "err");
+      }
+      // limpa sites e desativa scripts
+      await SeiFluxoStorage.saveSettings({ seiSites: [] });
+      await reconcileHostPermissions([]);
+      await chrome.runtime.sendMessage({
+        type: "SEI_FLUXO_SYNC_CONTENT_SCRIPTS",
+        injectOpenTabs: false
+      });
+      await refreshSeiSitesStatus();
+      return;
+    }
+
+    const baseUrls = sites.map((s) => s.baseUrl);
+    const patterns = sites.map((s) => s.matchPattern);
+
+    await SeiFluxoStorage.saveSettings({ seiSites: baseUrls });
+    await reconcileHostPermissions(patterns);
+
+    let granted = false;
+    try {
+      granted = await chrome.permissions.request({ origins: patterns });
+    } catch (err) {
+      toast("Falha ao solicitar permissão: " + (err.message || err), "err");
+      await refreshSeiSitesStatus();
+      return;
+    }
+
+    if (!granted) {
+      toast(
+        "Permissão negada. Sem ela a barra lateral não aparece no SEI.",
+        "err"
+      );
+      await chrome.runtime.sendMessage({
+        type: "SEI_FLUXO_SYNC_CONTENT_SCRIPTS",
+        injectOpenTabs: false
+      });
+      await refreshSeiSitesStatus();
+      return;
+    }
+
+    const res = await chrome.runtime.sendMessage({
+      type: "SEI_FLUXO_SYNC_CONTENT_SCRIPTS",
+      injectOpenTabs: true
+    });
+
+    await refreshSeiSitesStatus();
+
+    if (!res?.ok) {
+      toast("Erro ao ativar: " + (res?.error || "desconhecido"), "err");
+      return;
+    }
+    if (!res.registered) {
+      toast(
+        res.error ||
+          "Sites salvos, mas a atuação no SEI não foi ativada. Tente de novo.",
+        "err"
+      );
+      return;
+    }
+
+    const n = sites.length;
+    const inj =
+      res.injected > 0
+        ? ` Abas SEI abertas atualizadas (${res.injected}).`
+        : " Recarregue abas do SEI já abertas, se necessário.";
+    toast(
+      `${n} site${n === 1 ? "" : "s"} autorizado${n === 1 ? "" : "s"}. A extensão atuará apenas neles.${inj}`
+    );
+  }
 
   /* ---------- Fontes (arquivo / pasta) ---------- */
   // Exibição no SEI: Instituição | Departamento | Nome do Fluxo
@@ -742,6 +924,12 @@
   }
 
   function bind() {
+    els.btnSaveSeiSites?.addEventListener("click", () => {
+      saveAndActivateSeiSites().catch((e) => {
+        console.error(e);
+        toast("Erro ao salvar sites SEI.", "err");
+      });
+    });
     els.btnAddSource?.addEventListener("click", () => addSource("file"));
     els.btnAddFolder?.addEventListener("click", () => addSource("folder"));
     els.btnSync?.addEventListener("click", syncCatalog);
@@ -768,7 +956,11 @@
   }
 
   bind();
-  Promise.all([refreshCatalogStatus(), loadEditor()]).catch((e) => {
+  Promise.all([
+    refreshSeiSitesStatus(),
+    refreshCatalogStatus(),
+    loadEditor()
+  ]).catch((e) => {
     console.error(e);
     toast("Erro ao carregar.", "err");
   });

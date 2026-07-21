@@ -24,6 +24,40 @@
 
     <!-- CATÁLOGO -->
     <section id="panel-catalog" class="panel-section">
+      <div class="card card-required">
+        <h2>URL raiz do SEI <span class="req-badge">obrigatório</span></h2>
+        <p class="muted">
+          Informe o endereço base da instalação do SEI da sua instituição.
+          A extensão <strong>só funciona nesses sites</strong> (não lê todas as páginas da internet).
+          O Chrome pedirá permissão apenas para os endereços listados.
+        </p>
+        <label class="field">
+          <span>Endereço(s) do SEI — um por linha</span>
+          <textarea
+            id="fldSeiSites"
+            rows="3"
+            placeholder="https://sei.sua-instituicao.gov.br&#10;https://sei.outra-instituicao.edu.br/sei"
+            spellcheck="false"
+            autocomplete="off"
+          ></textarea>
+        </label>
+        <p class="hint">
+          Exemplos: <code>https://sei.ifmg.edu.br</code>
+          ou com caminho <code>https://www.orgao.gov.br/sei</code>.
+          Protocolo https é assumido se omitido.
+        </p>
+        <div class="btn-row">
+          <button type="button" id="btnSaveSeiSites" class="btn btn-primary">
+            Salvar e autorizar acesso ao SEI
+          </button>
+        </div>
+        <div class="status-box" style="margin-top:14px">
+          <div class="status-line"><span>Sites SEI</span><strong id="stSeiSites">nenhum</strong></div>
+          <div class="status-line"><span>Permissão</span><strong id="stSeiPerm">—</strong></div>
+          <div class="status-line"><span>Atuação no SEI</span><strong id="stSeiActive">inativa</strong></div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>Fontes de fluxos</h2>
         <p class="muted">
@@ -188,6 +222,7 @@
   <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="../shared/default-flows.js"></script>
+  <script src="../shared/sites.js"></script>
   <script src="../shared/catalog.js"></script>
   <script src="../shared/storage.js"></script>
   <script src="options.js"></script>

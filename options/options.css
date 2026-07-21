@@ -659,6 +659,24 @@ body { min-height: 100vh; }
 }
 .help-table th { background: #f1f5f9; }
 
+.card-required {
+  border: 1px solid #93c5fd;
+  box-shadow: 0 0 0 1px rgba(11, 92, 171, 0.08), var(--shadow);
+}
+.req-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0b5cab;
+  background: #e0f2fe;
+  border-radius: 999px;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+
 .card .field { margin-top: 12px; }
 .card .field input {
   border: 1px solid var(--border);

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SEI Fluxo — Demonstrador de Fluxos por Tipo de Processo",
   "short_name": "SEI Fluxo",
-  "version": "1.8.4",
+  "version": "1.9.0",
   "description": "Mostra o fluxo de etapas do tipo de processo no SEI a partir de JSON no Google Drive (arquivos e/ou pastas com vários departamentos).",
   "author": "Matheus Costa Frade",
   "homepage_url": "https://github.com/matheuscfrade/SEI-Fluxo",
@@ -27,44 +27,16 @@
     "service_worker": "background/service-worker.js"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
     "https://drive.google.com/*",
     "https://docs.google.com/*",
     "https://*.googleusercontent.com/*"
   ],
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "shared/default-flows.js",
-        "shared/catalog.js",
-        "shared/storage.js",
-        "content/detector.js",
-        "content/sidebar.js",
-        "content/content.js"
-      ],
-      "css": [
-        "content/content.css"
-      ],
-      "run_at": "document_idle",
-      "all_frames": true,
-      "match_about_blank": true
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "icons/*"
-      ],
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ]
-    }
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
   ]
 }

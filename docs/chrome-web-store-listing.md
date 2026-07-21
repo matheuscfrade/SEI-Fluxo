@@ -42,10 +42,11 @@ IMPORTANTE
 • Ele mostra apenas o detalhamento das etapas do tipo de processo identificado, conforme os fluxos JSON cadastrados na extensão (em geral no Google Drive).
 
 COMO FUNCIONA
-1. Nas Opções, adicione o link de um arquivo JSON ou de uma pasta do Google Drive com catálogos de fluxos (compartilhados como “qualquer pessoa com o link”).
-2. Clique em “Carregar todos os fluxos”.
-3. Abra um processo no SEI — a barra lateral exibe o fluxo correspondente ao tipo de processo.
-4. Se houver mais de um fluxo para o mesmo tipo, você escolhe qual visualizar.
+1. Nas Opções, informe a URL raiz do SEI da sua instituição (ex.: https://sei.sua-instituicao.gov.br) e autorize o acesso — a extensão só atua nesse site.
+2. Adicione o link de um arquivo JSON ou de uma pasta do Google Drive com catálogos de fluxos (compartilhados como “qualquer pessoa com o link”).
+3. Clique em “Carregar todos os fluxos”.
+4. Abra um processo no SEI — a barra lateral exibe o fluxo correspondente ao tipo de processo.
+5. Se houver mais de um fluxo para o mesmo tipo, você escolhe qual visualizar.
 
 RECURSOS
 • Identificação do tipo de processo na tela do SEI
@@ -105,7 +106,13 @@ Exibir na barra lateral o detalhamento das etapas de fluxos de trabalho associad
 ### storage
 
 ```
-Armazena localmente no navegador: links de catálogo, fluxos baixados, preferências da barra lateral e a escolha do usuário quando há mais de um fluxo para o mesmo tipo de processo. Não envia esses dados a servidores do desenvolvedor.
+Armazena localmente no navegador: URLs raiz do SEI configuradas pelo usuário, links de catálogo, fluxos baixados, preferências da barra lateral e a escolha do usuário quando há mais de um fluxo para o mesmo tipo de processo. Não envia esses dados a servidores do desenvolvedor.
+```
+
+### scripting
+
+```
+Usado para registrar e injetar content scripts somente nos hosts do SEI que o usuário informou e autorizou nas Opções (chrome.scripting.registerContentScripts / executeScript). Sem URL de SEI configurada e sem permissão concedida, nenhum script de página é injetado.
 ```
 
 ### Host permission — drive.google.com / docs.google.com / *.googleusercontent.com
@@ -114,10 +121,10 @@ Armazena localmente no navegador: links de catálogo, fluxos baixados, preferên
 Necessário para baixar os arquivos JSON de fluxos a partir de links do Google Drive (arquivo ou pasta) configurados pelo usuário nas Opções. A extensão não acessa o Drive por conta própria além das URLs informadas pelo usuário.
 ```
 
-### Content scripts em http(s)://*/* (acesso a páginas)
+### optional_host_permissions (http/https) — solicitadas sob demanda
 
 ```
-O SEI é instalado em dezenas de domínios de órgãos públicos e instituições (ex.: sei.*.gov.br, sei.*.edu.br e URLs internas). Não existe lista fixa de hosts. Os content scripts detectam marcadores típicos do SEI e só exibem a barra lateral dentro de um processo aberto. Em páginas que não são SEI, a interface não é montada. A extensão lê apenas metadados visíveis na tela (tipo/número do processo) para casar com o catálogo local.
+O SEI é instalado em domínios diferentes por órgão/instituição. Em vez de acessar todos os sites, a extensão pede permissão em tempo de execução apenas para a(s) URL(s) raiz do SEI que o usuário cadastra nas Opções (ex.: https://sei.instituicao.gov.br/*). Content scripts são registrados dinamicamente só nesses padrões. Em qualquer outro site a extensão não injeta código de página.
 ```
 
 ### Remote code

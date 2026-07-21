@@ -16,6 +16,7 @@ if (-not $version) { throw "Campo version ausente no manifest.json" }
 
 $distDir = Join-Path $root "dist"
 $stageDir = Join-Path $distDir "package"
+# Garante shared/sites.js no pacote (incluido via pasta shared/)
 $zipName = "sei-fluxo-$version-chrome.zip"
 $zipPath = Join-Path $distDir $zipName
 

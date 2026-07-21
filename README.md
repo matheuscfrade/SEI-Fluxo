@@ -33,11 +33,14 @@ No SEI o usuário escolhe qual ver.
 
 ### Quem usa no SEI
 1. Instala a extensão  
-2. Em **Opções → Catálogo**, adiciona:
+2. Em **Opções**, informa a **URL raiz do SEI** da instituição (obrigatório) e clica em **Salvar e autorizar acesso ao SEI**  
+   - Ex.: `https://sei.sua-instituicao.gov.br`  
+   - A extensão **só atua nesses sites** (o Chrome pede permissão só para eles)  
+3. Em **Catálogo**, adiciona:
    - **Arquivo JSON** — instituição + departamento + link, e/ou  
    - **Pasta do Drive** — instituição + link (vários `.json` = vários departamentos)  
-3. Clica em **Carregar todos os fluxos**  
-4. Abre um processo no SEI — a barra lateral exibe o fluxo  
+4. Clica em **Carregar todos os fluxos**  
+5. Abre um processo no SEI — a barra lateral exibe o fluxo  
    (se o mesmo tipo existir em mais de um fluxo, o usuário escolhe qual ver)
 
 ### Quem monta os JSON
@@ -82,7 +85,7 @@ Repositório: [github.com/matheuscfrade/SEI-Fluxo](https://github.com/matheuscfr
 
 ## Versão
 
-**1.8.4** — permissões mínimas para Chrome Web Store; aviso na sidebar de que o fluxo não é a tramitação real.
+**1.9.0** — URL raiz do SEI obrigatória nas opções; content scripts só nos hosts autorizados (melhor conformidade com a Chrome Web Store).
 
 ## Publicação na Chrome Web Store
 
