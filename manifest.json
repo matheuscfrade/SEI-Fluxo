@@ -1,0 +1,68 @@
+{
+  "manifest_version": 3,
+  "name": "SEI Fluxo — Demonstrador de Fluxos por Tipo de Processo",
+  "short_name": "SEI Fluxo",
+  "version": "1.6.1",
+  "description": "Mostra o fluxo de etapas do tipo de processo no SEI a partir de JSON no Google Drive (arquivos e/ou pastas com vários departamentos).",
+  "author": "SEI Fluxo",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "SEI Fluxo",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*/*"
+      ],
+      "js": [
+        "shared/default-flows.js",
+        "shared/catalog.js",
+        "shared/storage.js",
+        "content/detector.js",
+        "content/sidebar.js",
+        "content/content.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*"
+      ],
+      "matches": [
+        "*://*/*"
+      ]
+    }
+  ]
+}

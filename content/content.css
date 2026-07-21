@@ -1,0 +1,11 @@
+/* Ajustes leves no documento hospedeiro (fora do Shadow DOM) */
+html.sei-fluxo-pad-ready.sei-fluxo-sidebar-open {
+  /* Evita que a sidebar cubra ações importantes no canto direito */
+}
+
+/* Garante que o host da extensão fique acima da UI do SEI */
+#sei-fluxo-host {
+  all: initial;
+  position: relative;
+  z-index: 2147483646;
+}

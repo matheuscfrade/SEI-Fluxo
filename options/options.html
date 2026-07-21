@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEI Fluxo</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">SF</div>
+        <div>
+          <h1>SEI Fluxo</h1>
+          <p>Vários departamentos · um catálogo unificado</p>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="catalog" role="tab">Catálogo</button>
+        <button type="button" class="tab" data-tab="editor" role="tab">Criar fluxos (JSON)</button>
+      </nav>
+    </header>
+
+    <!-- CATÁLOGO -->
+    <section id="panel-catalog" class="panel-section">
+      <div class="card">
+        <h2>Fontes de fluxos</h2>
+        <p class="muted">
+          Adicione <strong>arquivos JSON</strong> (um departamento) e/ou uma
+          <strong>pasta do Google Drive</strong> com vários JSON (instituição inteira).
+          Cada <code>.json</code> da pasta vira um catálogo (nome = nome do arquivo).
+          Se o mesmo tipo existir em mais de um JSON, no SEI o usuário
+          <strong>escolhe qual exibir</strong>.
+        </p>
+        <p class="hint">
+          Pasta e arquivos devem estar como <strong>Qualquer pessoa com o link — Leitor</strong>.
+          Link de pasta: <code>https://drive.google.com/drive/folders/…</code>
+        </p>
+
+        <div id="sourcesList" class="sources-list"></div>
+
+        <div class="btn-row">
+          <button type="button" id="btnAddSource" class="btn btn-ghost-dark">+ Arquivo JSON</button>
+          <button type="button" id="btnAddFolder" class="btn btn-ghost-dark">+ Pasta do Drive</button>
+          <button type="button" id="btnSync" class="btn btn-primary">Carregar todos os fluxos</button>
+        </div>
+
+        <details class="advanced-box">
+          <summary>Opção avançada: chave da API Google (listagem de pastas)</summary>
+          <p class="hint">
+            Em algumas pastas a listagem pública falha. Uma chave da
+            <strong>Google Drive API</strong> (somente leitura, restrita) melhora a detecção dos
+            <code>.json</code>. Fica só neste navegador. Deixe em branco se não precisar.
+          </p>
+          <label class="field">
+            <span>Chave da API (opcional)</span>
+            <input type="password" id="fldDriveApiKey" placeholder="AIza…" autocomplete="off" />
+          </label>
+        </details>
+
+        <div class="status-box" style="margin-top:14px">
+          <div class="status-line"><span>Status</span><strong id="stCatalog">Aguardando fontes</strong></div>
+          <div class="status-line"><span>Fontes</span><strong id="stSourceCount">0</strong></div>
+          <div class="status-line"><span>Fluxos carregados</span><strong id="stRemoteCount">0</strong></div>
+          <div class="status-line"><span>Última atualização</span><strong id="stLastSync">—</strong></div>
+          <div class="status-line"><span>Conflitos</span><strong id="stConflicts">0</strong></div>
+        </div>
+      </div>
+
+      <div id="conflictsCard" class="card hidden">
+        <h3>Conflitos de tipo de processo</h3>
+        <p class="muted">
+          Mais de um arquivo cadastrou o <strong>mesmo nome exato</strong> de tipo de processo.
+          No SEI a barra mostra um aviso e permite <strong>escolher e alternar</strong> entre os fluxos disponíveis.
+        </p>
+        <div id="conflictsList" class="conflicts-list"></div>
+      </div>
+
+      <div class="card">
+        <h3>Fluxos disponíveis</h3>
+        <div id="remoteList" class="remote-list"></div>
+      </div>
+    </section>
+
+    <!-- EDITOR -->
+    <section id="panel-editor" class="panel-section hidden">
+      <div class="card publish-banner">
+        <h2>Como publicar (por departamento)</h2>
+        <ol class="help-list">
+          <li>Monte os fluxos do departamento abaixo e clique em <strong>Baixar JSON</strong>.</li>
+          <li>Envie o arquivo ao <strong>Google Drive</strong> do departamento.</li>
+          <li>Compartilhe: <strong>Qualquer pessoa com o link → Leitor</strong>.</li>
+          <li>Na aba <strong>Catálogo</strong>, adicione o link do arquivo <em>ou</em> coloque vários JSON numa pasta do Drive e use <strong>+ Pasta do Drive</strong>.</li>
+          <li>Clique em <strong>Carregar todos os fluxos</strong>. Se o mesmo tipo existir em mais de um JSON, o usuário escolhe qual ver no SEI.</li>
+        </ol>
+      </div>
+
+      <div class="editor-toolbar card">
+        <div>
+          <h2 style="margin:0 0 4px">Editor</h2>
+          <p class="muted" style="margin:0">
+            Gera o JSON de um departamento. O SEI usa apenas o que foi carregado pelos links do Catálogo.
+          </p>
+        </div>
+        <div class="topbar-actions editor-actions">
+          <button type="button" id="btnExport" class="btn btn-primary">Baixar JSON</button>
+          <label class="btn btn-ghost-dark file-btn">
+            Abrir JSON
+            <input type="file" id="fileImport" accept="application/json,.json" hidden />
+          </label>
+          <button type="button" id="btnNew" class="btn btn-ghost-dark">+ Novo fluxo</button>
+        </div>
+      </div>
+
+      <main class="layout">
+        <aside class="list-panel">
+          <div class="search-wrap">
+            <input type="search" id="search" placeholder="Buscar tipo de processo..." />
+          </div>
+          <div id="flowList" class="flow-list" role="list"></div>
+        </aside>
+
+        <section class="editor-panel">
+          <div id="emptyState" class="empty-state">
+            <h2>Selecione ou crie um fluxo</h2>
+            <p>Defina o tipo de processo e as etapas. Depois baixe o JSON e publique no Drive do departamento.</p>
+          </div>
+
+          <form id="editor" class="editor hidden" novalidate>
+            <div class="editor-header">
+              <h2 id="editorTitle">Editar fluxo</h2>
+              <label class="switch">
+                <input type="checkbox" id="fldActive" checked />
+                <span>Ativo</span>
+              </label>
+            </div>
+
+            <label class="field">
+              <span>Tipo do processo * (nome exato como no SEI)</span>
+              <input type="text" id="fldProcessType" required placeholder="Ex.: Geral: Pedidos de Diárias e Passagens" />
+            </label>
+            <p class="hint">O nome deve ser idêntico ao campo Tipo no SEI (não usa nomes alternativos).</p>
+
+            <label class="field">
+              <span>Descrição</span>
+              <textarea id="fldDescription" rows="2" placeholder="Resumo do fluxo"></textarea>
+            </label>
+
+            <div class="steps-header">
+              <h3>Etapas (ordem sequencial)</h3>
+              <button type="button" id="btnAddStep" class="btn btn-primary btn-sm">+ Nova etapa</button>
+            </div>
+            <div id="stepsList" class="steps-list"></div>
+            <div class="steps-footer">
+              <button type="button" id="btnAddStepBottom" class="btn btn-ghost">+ Adicionar outra etapa</button>
+            </div>
+
+            <div class="editor-footer">
+              <button type="button" id="btnDelete" class="btn btn-danger">Excluir fluxo</button>
+              <div class="spacer"></div>
+              <button type="button" id="btnCancel" class="btn btn-ghost">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </section>
+
+    <footer class="page-footer">
+      <span>SEI Fluxo v<span id="version">1.0.0</span></span>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="../shared/default-flows.js"></script>
+  <script src="../shared/catalog.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

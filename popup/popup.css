@@ -1,0 +1,108 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #0f172a;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 320px;
+  background: #f8fafc;
+}
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  background: linear-gradient(135deg, #0b5cab, #0e7490);
+  color: #fff;
+}
+.logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.25);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+.muted { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+main { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.lead { margin: 4px 0 0; font-size: 12px; color: #64748b; line-height: 1.45; }
+.actions { margin-top: 4px; }
+
+.status {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.status-line {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 6px;
+  font-size: 11px;
+  align-items: start;
+}
+.status-line span { color: #64748b; font-weight: 600; }
+.status-line strong {
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+}
+.status-line strong.ok { color: #047857; }
+.status-line strong.bad { color: #b91c1c; }
+.status-line strong.warn { color: #b45309; }
+
+.actions { display: flex; flex-direction: column; gap: 6px; }
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.row input { accent-color: #0b5cab; width: 16px; height: 16px; }
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0b5cab;
+}
+.stats > div {
+  background: #e0f2fe;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+.stats span { display: block; font-size: 18px; color: #0f172a; }
+footer { padding: 0 14px 14px; }
+.btn {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #0b5cab, #0e7490);
+  color: #fff;
+  font-family: inherit;
+}
+.btn:hover { filter: brightness(1.05); }
+.btn-secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}

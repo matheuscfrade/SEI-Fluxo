@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "institution": "Instituição Exemplo",
+  "updatedAt": "2026-07-20T12:00:00.000Z",
+  "flows": [
+    {
+      "id": "flow-diarias",
+      "processType": "Geral: Pedidos de Diárias e Passagens",
+      "description": "Fluxo demonstrativo de diárias e passagens.",
+      "active": true,
+      "steps": [
+        {
+          "id": "s1",
+          "order": 1,
+          "name": "Solicitação da viagem",
+          "description": "Preenchimento do pedido com justificativa, datas e destino.",
+          "unit": "Servidor / Unidade"
+        },
+        {
+          "id": "s2",
+          "order": 2,
+          "name": "Autorização da chefia",
+          "description": "Validação da necessidade e da oportunidade da viagem.",
+          "unit": "Chefia"
+        },
+        {
+          "id": "s3",
+          "order": 3,
+          "name": "Análise orçamentária",
+          "description": "Verificação de saldo e emissão de empenho, se aplicável.",
+          "unit": "Orçamento / Financeiro"
+        },
+        {
+          "id": "s4",
+          "order": 4,
+          "name": "Emissão de diárias/passagens",
+          "description": "Processamento no SCDP ou sistema equivalente.",
+          "unit": "Administrativo"
+        },
+        {
+          "id": "s5",
+          "order": 5,
+          "name": "Prestação de contas",
+          "description": "Relatório de viagem e documentos comprobatórios.",
+          "unit": "Servidor"
+        }
+      ]
+    }
+  ]
+}

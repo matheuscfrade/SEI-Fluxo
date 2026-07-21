@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEI — Simulação de Processo (demo SEI Fluxo)</title>
+  <style>
+    :root {
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: #222;
+    }
+    body { margin: 0; background: #e9eef2; }
+    #divInfraBarraSistema {
+      background: #1a5276;
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+    #divInfraAreaTela { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 48px); }
+    #divArvore {
+      background: #fff;
+      border-right: 1px solid #c5d0da;
+      padding: 12px;
+      font-size: 13px;
+    }
+    #divArvore a { display: block; color: #1a5276; text-decoration: none; margin: 6px 0; }
+    main { padding: 16px 20px; }
+    h2 { margin-top: 0; color: #1a5276; font-size: 18px; }
+    table.infraTable {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid #c5d0da;
+    }
+    table.infraTable th, table.infraTable td {
+      border: 1px solid #dbe3ea;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 13px;
+    }
+    table.infraTable th {
+      width: 180px;
+      background: #f4f7fa;
+      color: #334;
+      font-weight: 700;
+    }
+    .hint {
+      margin-top: 16px;
+      padding: 12px 14px;
+      background: #fff8e6;
+      border: 1px solid #f0d78c;
+      border-radius: 8px;
+      font-size: 13px;
+      max-width: 720px;
+    }
+    label { font-size: 13px; font-weight: 600; margin-right: 8px; }
+    select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #c5d0da;
+      font: inherit;
+    }
+  </style>
+</head>
+<body>
+  <div id="divInfraBarraSistema">
+    <span>SEI — Sistema Eletrônico de Informações (simulado)</span>
+    <span id="lnkInfraUnidade">Unidade Demo / PROTOCOLO</span>
+  </div>
+
+  <div id="divInfraAreaTela">
+    <aside id="divArvore">
+      <strong>Árvore do Processo</strong>
+      <div class="infraArvoreNoSelecionado">00000.000001/2026-01</div>
+      <a href="#">Despacho de abertura</a>
+      <a href="#">Formulário de solicitação</a>
+      <a href="#">Parecer da chefia</a>
+      <a href="#">Despacho decisório</a>
+    </aside>
+
+    <main>
+      <h2>Consulta de Processo</h2>
+      <p>
+        <label for="tipoSelect">Trocar tipo (demo):</label>
+        <select id="tipoSelect">
+          <option>Férias</option>
+          <option>Licença Capacitação</option>
+          <option>Contratação</option>
+          <option>Acesso à Informação</option>
+          <option>Diárias e Passagens</option>
+          <option>Tipo sem fluxo cadastrado</option>
+        </select>
+      </p>
+
+      <table class="infraTable" id="tblProcessosDetalhado">
+        <tr>
+          <th>Processo</th>
+          <td id="txtProcedimentoFormatado">00000.000001/2026-01</td>
+        </tr>
+        <tr>
+          <th>Tipo do Processo</th>
+          <td id="celTipo">Férias</td>
+        </tr>
+        <tr>
+          <th>Interessados</th>
+          <td>Servidor(a) Demonstração</td>
+        </tr>
+        <tr>
+          <th>Situação</th>
+          <td>Em andamento</td>
+        </tr>
+      </table>
+
+      <h2 style="margin-top:24px">Andamento</h2>
+      <table class="infraTable" id="tblHistorico">
+        <tr><th>Data</th><th>Unidade</th><th>Descrição</th></tr>
+        <tr>
+          <td>10/03/2026</td>
+          <td>PROTOCOLO</td>
+          <td>Processo aberto e autuado</td>
+        </tr>
+        <tr>
+          <td>11/03/2026</td>
+          <td>CHEFIA</td>
+          <td>Análise da chefia imediata — favorável</td>
+        </tr>
+        <tr>
+          <td>12/03/2026</td>
+          <td>RH</td>
+          <td>Encaminhado para análise do RH / gestão de pessoas</td>
+        </tr>
+      </table>
+
+      <div class="hint">
+        <strong>Como testar a extensão:</strong>
+        <ol>
+          <li>Carregue a pasta <code>SEI-Fluxo</code> em <em>chrome://extensions</em> (modo desenvolvedor).</li>
+          <li>Abra este arquivo via servidor local ou adicione o caminho aos host permissions se necessário.
+            Para demo rápida, sirva a pasta e acesse via <code>http://localhost</code>.</li>
+          <li>A barra <strong>SEI Fluxo</strong> deve aparecer à direita com o fluxograma do tipo selecionado.</li>
+          <li>Altere o tipo no select para ver a troca de fluxo em tempo real (reanálise automática).</li>
+        </ol>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const select = document.getElementById("tipoSelect");
+    const celTipo = document.getElementById("celTipo");
+    select.addEventListener("change", () => {
+      celTipo.textContent = select.value;
+    });
+  </script>
+</body>
+</html>

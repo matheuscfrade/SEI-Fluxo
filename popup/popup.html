@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SEI Fluxo</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">SF</div>
+    <div>
+      <strong>SEI Fluxo</strong>
+      <div class="muted">Fluxos da instituição</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="status">
+      <div class="status-line"><span>Catálogo</span><strong id="stCatalog">—</strong></div>
+      <div class="status-line"><span>Fluxos</span><strong id="stFlows">0</strong></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="btnSync" class="btn">Carregar / atualizar fluxos</button>
+    </div>
+
+    <p class="lead">
+      Configure o link do Google Drive nas opções. A barra no SEI usa apenas esse catálogo.
+    </p>
+  </main>
+
+  <footer>
+    <button type="button" id="btnOptions" class="btn">Abrir opções</button>
+  </footer>
+
+  <script src="../shared/default-flows.js"></script>
+  <script src="../shared/catalog.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
