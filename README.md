@@ -82,4 +82,18 @@ Repositório: [github.com/matheuscfrade/SEI-Fluxo](https://github.com/matheuscfr
 
 ## Versão
 
-**1.8.3** — créditos do autor; administração só nas opções da extensão.
+**1.8.4** — permissões mínimas para Chrome Web Store; aviso na sidebar de que o fluxo não é a tramitação real.
+
+## Publicação na Chrome Web Store
+
+Veja o checklist e os textos prontos:
+
+- [`docs/chrome-web-store-checklist.md`](docs/chrome-web-store-checklist.md)
+- [`docs/chrome-web-store-listing.md`](docs/chrome-web-store-listing.md)
+- Política de privacidade: [`PRIVACY.md`](PRIVACY.md)
+
+Gerar ZIP de envio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-store-zip.ps1
+```
