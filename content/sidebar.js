@@ -358,8 +358,26 @@
         body.appendChild(this.renderConflictPicker());
       }
 
+      body.appendChild(this.renderDisclaimer());
       body.appendChild(this.renderFlowchart(flow));
       return body;
+    }
+
+    renderDisclaimer() {
+      const box = el("aside", "sf-disclaimer", {
+        role: "note",
+        "aria-label": "Aviso sobre o fluxo demonstrado"
+      });
+      box.innerHTML = `
+        <div class="sf-disclaimer-title">Aviso</div>
+        <p class="sf-disclaimer-text">
+          O fluxo demonstrado <strong>não reflete a etapa atual</strong> nem as etapas
+          pelas quais o processo já passou. Ele apresenta apenas o detalhamento das
+          etapas do tipo de processo identificado, conforme os fluxos cadastrados
+          na extensão.
+        </p>
+      `;
+      return box;
     }
 
     renderConflictPicker() {
@@ -739,6 +757,32 @@
       font-size: 10px;
       color: var(--sf-muted);
       font-weight: 600;
+    }
+    .sf-disclaimer {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-left: 3px solid #0b5cab;
+      border-radius: 10px;
+      padding: 10px 12px;
+      line-height: 1.4;
+    }
+    .sf-disclaimer-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #0b5cab;
+      margin-bottom: 4px;
+    }
+    .sf-disclaimer-text {
+      margin: 0;
+      font-size: 11px;
+      color: #334155;
+      line-height: 1.45;
+    }
+    .sf-disclaimer-text strong {
+      color: #0f172a;
+      font-weight: 700;
     }
     .sf-flowchart {
       display: flex;
