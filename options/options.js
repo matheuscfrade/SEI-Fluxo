@@ -88,7 +88,7 @@
     return SeiFluxoSites.parseSeiSites(text);
   }
 
-  async function refreshSeiSitesStatus() {
+  async function refreshSeiSitesStatus(opts = {}) {
     const settings = await SeiFluxoStorage.getSettings();
     const sites = SeiFluxoSites.parseSeiSites(settings.seiSites || []);
     if (els.fldSeiSites && document.activeElement !== els.fldSeiSites) {
@@ -103,6 +103,28 @@
       status = res?.status || null;
     } catch (_) {
       status = null;
+    }
+
+    // Permissão ok, mas script ainda não registrado → tenta de novo em silêncio
+    if (
+      opts.autoRepair !== false &&
+      status &&
+      status.granted?.length &&
+      !status.registered &&
+      status.sites?.length
+    ) {
+      try {
+        const fix = await chrome.runtime.sendMessage({
+          type: "SEI_FLUXO_SYNC_CONTENT_SCRIPTS",
+          injectOpenTabs: false
+        });
+        status = fix?.status || status;
+        if (fix?.error && !fix?.registered) {
+          status = { ...status, lastError: fix.error, registered: false };
+        }
+      } catch (_) {
+        /* ignore */
+      }
     }
 
     const list = status?.sites?.length
@@ -139,9 +161,18 @@
       if (status?.active) {
         els.stSeiActive.textContent = "ativa nestes sites";
         els.stSeiActive.className = "ok";
-      } else if (list.length) {
-        els.stSeiActive.textContent = "inativa — autorize o acesso";
+      } else if (!list.length) {
+        els.stSeiActive.textContent = "inativa";
         els.stSeiActive.className = "warn";
+      } else if (status?.missing?.length) {
+        els.stSeiActive.textContent = "inativa — autorize o acesso no Chrome";
+        els.stSeiActive.className = "warn";
+      } else if (status?.granted?.length && !status?.registered) {
+        const detail = status.lastError
+          ? `inativa — falha ao registrar: ${status.lastError}`
+          : "inativa — permissão ok, mas script não registrado (clique em Salvar de novo)";
+        els.stSeiActive.textContent = detail;
+        els.stSeiActive.className = "bad";
       } else {
         els.stSeiActive.textContent = "inativa";
         els.stSeiActive.className = "warn";
@@ -230,29 +261,25 @@
       injectOpenTabs: true
     });
 
-    await refreshSeiSitesStatus();
+    await refreshSeiSitesStatus({ autoRepair: false });
 
-    if (!res?.ok) {
-      toast("Erro ao ativar: " + (res?.error || "desconhecido"), "err");
-      return;
-    }
-    if (!res.registered) {
+    if (res?.registered || res?.status?.active) {
+      const n = sites.length;
+      const inj =
+        res.injected > 0
+          ? ` Abas SEI abertas atualizadas (${res.injected}).`
+          : " Recarregue a aba do SEI (F5) se a barra não aparecer.";
       toast(
-        res.error ||
-          "Sites salvos, mas a atuação no SEI não foi ativada. Tente de novo.",
-        "err"
+        `${n} site${n === 1 ? "" : "s"} ativo${n === 1 ? "" : "s"}. A extensão atuará apenas neles.${inj}`
       );
       return;
     }
 
-    const n = sites.length;
-    const inj =
-      res.injected > 0
-        ? ` Abas SEI abertas atualizadas (${res.injected}).`
-        : " Recarregue abas do SEI já abertas, se necessário.";
-    toast(
-      `${n} site${n === 1 ? "" : "s"} autorizado${n === 1 ? "" : "s"}. A extensão atuará apenas neles.${inj}`
-    );
+    const detail =
+      res?.error ||
+      res?.status?.lastError ||
+      "script não registrado (recarregue a extensão em chrome://extensions e tente de novo)";
+    toast("Permissão ok, mas falhou ao ativar: " + detail, "err");
   }
 
   /* ---------- Fontes (arquivo / pasta) ---------- */

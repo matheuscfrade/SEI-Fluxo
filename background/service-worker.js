@@ -1,15 +1,14 @@
 /**
  * Service worker — seed, permissões de host SEI e content scripts dinâmicos.
  */
-importScripts(
-  "../shared/sites.js"
-);
+importScripts("../shared/sites.js");
 
 const STORAGE_KEYS = {
   FLOWS: "seiFluxo_flows",
   REMOTE_FLOWS: "seiFluxo_remoteFlows",
   SETTINGS: "seiFluxo_settings",
-  SEEDED: "seiFluxo_seeded"
+  SEEDED: "seiFluxo_seeded",
+  LAST_REGISTER_ERROR: "seiFluxo_lastRegisterError"
 };
 
 const DEFAULT_SETTINGS = {
@@ -23,6 +22,8 @@ const DEFAULT_SETTINGS = {
 };
 
 const CONTENT_SCRIPT_ID = "sei-fluxo-content";
+
+/** Caminhos relativos à raiz da extensão (sem ../). */
 const CONTENT_JS = [
   "shared/default-flows.js",
   "shared/sites.js",
@@ -64,80 +65,169 @@ async function ensureSeeded() {
   }
 }
 
+async function setLastRegisterError(msg) {
+  if (msg) {
+    await chrome.storage.local.set({
+      [STORAGE_KEYS.LAST_REGISTER_ERROR]: String(msg)
+    });
+  } else {
+    await chrome.storage.local.remove(STORAGE_KEYS.LAST_REGISTER_ERROR);
+  }
+}
+
+async function getLastRegisterError() {
+  const data = await chrome.storage.local.get(STORAGE_KEYS.LAST_REGISTER_ERROR);
+  return data[STORAGE_KEYS.LAST_REGISTER_ERROR] || null;
+}
+
 async function getSeiSitesFromStorage() {
   const data = await chrome.storage.local.get(STORAGE_KEYS.SETTINGS);
   const settings = { ...DEFAULT_SETTINGS, ...(data[STORAGE_KEYS.SETTINGS] || {}) };
   const raw = settings.seiSites || [];
+  if (!globalThis.SeiFluxoSites?.parseSeiSites) {
+    throw new Error("Módulo shared/sites.js não carregou no service worker.");
+  }
   return globalThis.SeiFluxoSites.parseSeiSites(raw);
 }
 
+async function unregisterOurScripts() {
+  try {
+    const existing = await chrome.scripting.getRegisteredContentScripts();
+    const ours = (existing || []).filter(
+      (s) => s.id === CONTENT_SCRIPT_ID || String(s.id || "").startsWith("sei-fluxo")
+    );
+    if (ours.length) {
+      await chrome.scripting.unregisterContentScripts({
+        ids: ours.map((s) => s.id)
+      });
+    }
+  } catch (_) {
+    try {
+      await chrome.scripting.unregisterContentScripts({
+        ids: [CONTENT_SCRIPT_ID]
+      });
+    } catch (_) {
+      /* ainda não registrado */
+    }
+  }
+}
+
 /**
- * Remove content script registrado e, se houver matches + permissão, registra de novo.
- * @returns {{ ok: boolean, registered: boolean, patterns: string[], error?: string }}
+ * Registra com o menor conjunto de propriedades (máxima compatibilidade).
+ * Tenta matchOriginAsFallback só se o Chrome aceitar.
+ */
+async function registerWithBestEffort(matches) {
+  const base = {
+    id: CONTENT_SCRIPT_ID,
+    matches,
+    js: CONTENT_JS,
+    css: CONTENT_CSS,
+    runAt: "document_idle",
+    allFrames: true,
+    persistAcrossSessions: true
+  };
+
+  // 1) Tentativa completa (Chrome 119+)
+  try {
+    await chrome.scripting.registerContentScripts([
+      { ...base, matchOriginAsFallback: true }
+    ]);
+    return { ok: true, mode: "matchOriginAsFallback" };
+  } catch (err1) {
+    // 2) Sem matchOriginAsFallback (versões/APIs mais restritas)
+    try {
+      await unregisterOurScripts();
+      await chrome.scripting.registerContentScripts([base]);
+      return {
+        ok: true,
+        mode: "basic",
+        warning: err1?.message || String(err1)
+      };
+    } catch (err2) {
+      return {
+        ok: false,
+        error: err2?.message || String(err2),
+        firstError: err1?.message || String(err1)
+      };
+    }
+  }
+}
+
+/**
+ * @returns {{ ok: boolean, registered: boolean, patterns: string[], error?: string, mode?: string }}
  */
 async function syncContentScripts() {
   const sites = await getSeiSitesFromStorage();
   const patterns = sites.map((s) => s.matchPattern);
 
-  try {
-    await chrome.scripting.unregisterContentScripts({
-      ids: [CONTENT_SCRIPT_ID]
-    }).catch(() => {
-      /* ainda não registrado */
-    });
-  } catch (_) {
-    /* ignore */
-  }
+  await unregisterOurScripts();
 
   if (!patterns.length) {
+    await setLastRegisterError(null);
     return { ok: true, registered: false, patterns: [] };
   }
 
-  // Só registra padrões para os quais já há permissão
   const allowed = [];
   for (const p of patterns) {
-    const has = await chrome.permissions.contains({ origins: [p] });
-    if (has) allowed.push(p);
+    try {
+      const has = await chrome.permissions.contains({ origins: [p] });
+      if (has) allowed.push(p);
+    } catch (_) {
+      /* ignore single pattern */
+    }
   }
 
   if (!allowed.length) {
+    const msg =
+      "Permissão de host ainda não concedida para: " + patterns.join(", ");
+    await setLastRegisterError(msg);
     return {
       ok: true,
       registered: false,
       patterns,
-      error:
-        "Nenhuma permissão de host concedida para as URLs do SEI. Salve e autorize nas Opções."
+      error: msg
     };
   }
 
-  try {
-    await chrome.scripting.registerContentScripts([
-      {
-        id: CONTENT_SCRIPT_ID,
-        matches: allowed,
-        js: CONTENT_JS,
-        css: CONTENT_CSS,
-        runAt: "document_idle",
-        allFrames: true,
-        matchAboutBlank: true,
-        persistAcrossSessions: true
-      }
-    ]);
-  } catch (err) {
+  const result = await registerWithBestEffort(allowed);
+  if (!result.ok) {
+    const msg = result.error || "Falha ao registrar content scripts.";
+    await setLastRegisterError(msg);
     return {
       ok: false,
       registered: false,
       patterns: allowed,
-      error: err?.message || String(err)
+      error: msg
     };
   }
 
-  return { ok: true, registered: true, patterns: allowed };
+  // Confirma se realmente ficou registrado
+  let registered = false;
+  try {
+    const list = await chrome.scripting.getRegisteredContentScripts({
+      ids: [CONTENT_SCRIPT_ID]
+    });
+    registered = Array.isArray(list) && list.length > 0;
+  } catch (_) {
+    registered = false;
+  }
+
+  if (!registered) {
+    const msg =
+      "registerContentScripts não reportou erro, mas o script não aparece como registrado.";
+    await setLastRegisterError(msg);
+    return { ok: false, registered: false, patterns: allowed, error: msg };
+  }
+
+  await setLastRegisterError(null);
+  return {
+    ok: true,
+    registered: true,
+    patterns: allowed,
+    mode: result.mode
+  };
 }
 
-/**
- * Injeta scripts nas abas já abertas que batem com os padrões (após ativar).
- */
 async function injectIntoOpenTabs(patterns) {
   if (!patterns?.length) return { injected: 0 };
   let injected = 0;
@@ -176,24 +266,23 @@ async function injectIntoOpenTabs(patterns) {
   return { injected };
 }
 
-/**
- * Match simples para padrões https://host/* ou https://host/path/*
- */
 function urlMatchesPattern(url, pattern) {
-  // pattern: scheme://host/*  ou  scheme://host/prefix/*
   const m = String(pattern).match(/^(https?):\/\/([^/]+)(\/.*)$/i);
   if (!m) return false;
   const scheme = m[1].toLowerCase();
   const host = m[2].toLowerCase();
-  let pathPat = m[3]; // includes leading /
+  let pathPat = m[3];
   if (!pathPat.endsWith("*")) return false;
-  const pathPrefix = pathPat.slice(0, -1); // e.g. "/" or "/sei/"
+  const pathPrefix = pathPat.slice(0, -1);
 
   if (url.protocol.replace(":", "").toLowerCase() !== scheme) return false;
 
-  // host do pattern (pode incluir porta, ex.: localhost:8080)
   const urlHostWithPort =
-    url.port && !((scheme === "http" && url.port === "80") || (scheme === "https" && url.port === "443"))
+    url.port &&
+    !(
+      (scheme === "http" && url.port === "80") ||
+      (scheme === "https" && url.port === "443")
+    )
       ? `${url.hostname}:${url.port}`.toLowerCase()
       : url.hostname.toLowerCase();
   if (urlHostWithPort !== host && url.hostname.toLowerCase() !== host) {
@@ -201,7 +290,7 @@ function urlMatchesPattern(url, pattern) {
   }
 
   const path = url.pathname || "/";
-  if (pathPrefix === "/") return true; // origin/*
+  if (pathPrefix === "/") return true;
   return path === pathPrefix.replace(/\/$/, "") || path.startsWith(pathPrefix);
 }
 
@@ -211,20 +300,30 @@ async function getSitesStatus() {
   const granted = [];
   const missing = [];
   for (const p of patterns) {
-    const has = await chrome.permissions.contains({ origins: [p] });
-    if (has) granted.push(p);
-    else missing.push(p);
+    try {
+      const has = await chrome.permissions.contains({ origins: [p] });
+      if (has) granted.push(p);
+      else missing.push(p);
+    } catch (_) {
+      missing.push(p);
+    }
   }
 
   let registered = false;
+  let registeredMatches = [];
   try {
     const list = await chrome.scripting.getRegisteredContentScripts({
       ids: [CONTENT_SCRIPT_ID]
     });
-    registered = list.length > 0;
+    registered = Array.isArray(list) && list.length > 0;
+    if (registered) {
+      registeredMatches = list[0].matches || [];
+    }
   } catch (_) {
     registered = false;
   }
+
+  const lastError = await getLastRegisterError();
 
   return {
     sites: sites.map((s) => s.baseUrl),
@@ -232,7 +331,9 @@ async function getSitesStatus() {
     granted,
     missing,
     registered,
-    active: registered && granted.length > 0
+    registeredMatches,
+    lastError,
+    active: registered && granted.length > 0 && missing.length === 0
   };
 }
 
@@ -250,6 +351,11 @@ chrome.runtime.onStartup.addListener(async () => {
 });
 
 chrome.permissions.onRemoved.addListener(() => {
+  syncContentScripts().catch(() => {});
+});
+
+// Se o usuário conceder permissão por outro caminho, tenta registrar
+chrome.permissions.onAdded.addListener(() => {
   syncContentScripts().catch(() => {});
 });
 
