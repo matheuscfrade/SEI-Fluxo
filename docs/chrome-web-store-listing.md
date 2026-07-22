@@ -115,10 +115,10 @@ Armazena localmente no navegador: URLs raiz do SEI configuradas pelo usuário, l
 Usado para registrar e injetar content scripts somente nos hosts do SEI que o usuário informou e autorizou nas Opções (chrome.scripting.registerContentScripts / executeScript). Sem URL de SEI configurada e sem permissão concedida, nenhum script de página é injetado.
 ```
 
-### Host permission — drive.google.com / docs.google.com / *.googleusercontent.com
+### Host permission — drive.google.com / docs.google.com / drive.usercontent.google.com / *.googleusercontent.com
 
 ```
-Necessário para baixar os arquivos JSON de fluxos a partir de links do Google Drive (arquivo ou pasta) configurados pelo usuário nas Opções. A extensão não acessa o Drive por conta própria além das URLs informadas pelo usuário.
+Necessário para baixar os arquivos JSON de fluxos a partir de links do Google Drive (arquivo ou pasta) configurados pelo usuário nas Opções. O Google redireciona o download para drive.usercontent.google.com (e eventualmente *.googleusercontent.com). A extensão não acessa o Drive por conta própria além das URLs informadas pelo usuário.
 ```
 
 ### optional_host_permissions (http/https) — solicitadas sob demanda

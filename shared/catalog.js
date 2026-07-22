@@ -13,28 +13,38 @@
       return null; // pastas não têm um único download
     }
 
+    // URL canônica de download (Google redireciona uc? para drive.usercontent.google.com)
+    const toDirectDownload = (id) =>
+      `https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download`;
+
+    if (/drive\.usercontent\.google\.com\/download/i.test(raw) && /[?&]id=/i.test(raw)) {
+      return raw;
+    }
+
     if (/drive\.google\.com\/uc\?/i.test(raw) && /[?&]id=/i.test(raw)) {
+      const idM = raw.match(/[?&]id=([^&]+)/i);
+      if (idM) return toDirectDownload(decodeURIComponent(idM[1]));
       return raw;
     }
 
     let m = raw.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
     if (m) {
-      return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+      return toDirectDownload(m[1]);
     }
 
     m = raw.match(/drive\.google\.com\/open\?[^#]*id=([^&]+)/i);
     if (m) {
-      return `https://drive.google.com/uc?export=download&id=${decodeURIComponent(m[1])}`;
+      return toDirectDownload(decodeURIComponent(m[1]));
     }
 
     m = raw.match(/(?:docs|drive)\.google\.com\/uc\?[^#]*id=([^&]+)/i);
     if (m) {
-      return `https://drive.google.com/uc?export=download&id=${decodeURIComponent(m[1])}`;
+      return toDirectDownload(decodeURIComponent(m[1]));
     }
 
     m = raw.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
-    if (/drive\.google\.com|docs\.google\.com/i.test(raw) && m) {
-      return `https://drive.google.com/uc?export=download&id=${m[1]}`;
+    if (/drive\.google\.com|docs\.google\.com|drive\.usercontent\.google\.com/i.test(raw) && m) {
+      return toDirectDownload(m[1]);
     }
 
     try {
@@ -261,11 +271,19 @@
       );
     }
 
-    const res = await fetch(url, {
-      method: "GET",
-      credentials: "omit",
-      cache: "no-cache"
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-cache"
+      });
+    } catch (err) {
+      const detail = err && err.message ? err.message : String(err);
+      throw new Error(
+        `Falha de rede ao baixar o JSON (${detail}). Confira o link, se o arquivo está como “Qualquer pessoa com o link — Leitor” e se a extensão tem permissão para o Google Drive.`
+      );
+    }
 
     if (!res.ok) {
       throw new Error(
@@ -324,13 +342,11 @@
     const errors = [];
 
     for (const f of files) {
-      const fileUrl = `https://drive.google.com/uc?export=download&id=${f.id}`;
+      const fileUrl = `https://drive.usercontent.google.com/download?id=${encodeURIComponent(f.id)}&export=download`;
       const department = labelFromFileName(f.name);
       const label = [inst, department].filter(Boolean).join(" | ") || department;
       try {
-        const result = await fetchCatalogFromUrl(
-          `https://drive.google.com/file/d/${f.id}/view`
-        );
+        const result = await fetchCatalogFromUrl(fileUrl);
         batches.push({
           institution: inst,
           department,

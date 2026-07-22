@@ -95,7 +95,7 @@ O desenvolvedor **não opera** servidor próprio de coleta de telemetria para es
 - **`storage`**: salvar catálogos, preferências, URLs do SEI e escolhas do usuário no navegador.
 - **`scripting`**: registrar e injetar a barra lateral **apenas** nos sites SEI que o usuário configurou e autorizou.
 - **Permissão de host opcional (por site)**: solicitada em tempo de execução somente para a(s) URL(s) raiz do SEI informadas pelo usuário. A extensão **não** injeta scripts em todas as páginas da internet.
-- **Host permissions do Google Drive / Googleusercontent**: baixar os JSON de catálogo que o usuário configurou.
+- **Host permissions do Google Drive / Googleusercontent / drive.usercontent.google.com**: baixar os JSON de catálogo que o usuário configurou (o Google redireciona downloads para esse host).
 
 ## 9. Crianças
 
