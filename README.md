@@ -85,18 +85,8 @@ Repositório: [github.com/matheuscfrade/SEI-Fluxo](https://github.com/matheuscfr
 
 ## Versão
 
-**1.9.0** — URL raiz do SEI obrigatória nas opções; content scripts só nos hosts autorizados (melhor conformidade com a Chrome Web Store).
+**1.9.0** — URL raiz do SEI obrigatória nas opções; content scripts só nos hosts autorizados.
 
-## Publicação na Chrome Web Store
+## Privacidade
 
-Veja o checklist e os textos prontos:
-
-- [`docs/chrome-web-store-checklist.md`](docs/chrome-web-store-checklist.md)
-- [`docs/chrome-web-store-listing.md`](docs/chrome-web-store-listing.md)
-- Política de privacidade: [`PRIVACY.md`](PRIVACY.md)
-
-Gerar ZIP de envio:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\build-store-zip.ps1
-```
+Política de privacidade: [`PRIVACY.md`](PRIVACY.md)
