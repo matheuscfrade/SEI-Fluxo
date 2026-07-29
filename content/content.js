@@ -74,8 +74,9 @@
     if (qa > qb) return { type: a.processType, score: qa };
     const ta = a?.processType || null;
     const tb = b?.processType || null;
+    // Em empate de score, prefere o nome mais completo (evita ficar com tipo truncado).
     if (ta && tb) {
-      return ta.length <= tb.length
+      return ta.length >= tb.length
         ? { type: ta, score: qa }
         : { type: tb, score: qb };
     }
