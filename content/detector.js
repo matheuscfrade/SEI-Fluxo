@@ -53,8 +53,16 @@
     ".infraArvore"
   ];
 
+  /**
+   * Corta o valor quando o texto concatenado inclui o próximo rótulo de campo do SEI
+   * (ex.: "Tipo ... Interessados ... Situação").
+   *
+   * Não use palavras comuns em nomes de tipo (ex.: "acompanhamento" sozinho) —
+   * isso truncava tipos como "Gestão de Contrato: Acompanhamento da Execução"
+   * para "Gestão de Contrato:" (issue #1).
+   */
   const VALUE_STOP_RE =
-    /\s+(?:interessad\w*|situa[cç][aã]o|data\s+d[eo]|[oó]rg[aã]o|n[ií]vel\s+d[eo]|anota[cç][oõ]es|observa[cç][oõ]es|hip[oó]tese|credencial|marcador|prioridade|usu[aá]rio\s+gerador|unidade\s+geradora|acompanhamento|andamentos?|protocolo|meios?\s+de\s+acesso|acesso\s+restrito|codigo\s+de\s+barras|c[oó]digo\s+de\s+barras)\b[\s\S]*$/i;
+    /\s+(?:interessad\w*|situa[cç][aã]o|data\s+d[eo]|[oó]rg[aã]o|n[ií]vel\s+d[eo]|anota[cç][oõ]es|observa[cç][oõ]es|hip[oó]tese|credencial|marcador|prioridade|usu[aá]rio\s+gerador|unidade\s+geradora|acompanhamento\s+especial|andamentos?|protocolo|meios?\s+de\s+acesso|acesso\s+restrito|codigo\s+de\s+barras|c[oó]digo\s+de\s+barras)\b[\s\S]*$/i;
 
   function normalize(text) {
     return String(text || "")
