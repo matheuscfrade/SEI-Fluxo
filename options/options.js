@@ -549,26 +549,37 @@
       conflicts.forEach((c) => {
         const div = document.createElement("div");
         div.className = "conflict-item";
-        const lines = (c.entries || [])
-          .map((e) => {
-            const path =
-              e.displayPath ||
-              [
-                e.sourceLabel,
-                e.flowTitle || e.flowName || e.processType
-              ]
-                .filter(Boolean)
-                .join(" | ") ||
-              e.processType;
-            return `• ${path} (${e.steps} etapa${e.steps === 1 ? "" : "s"})`;
-          })
-          .join("<br>");
-        div.innerHTML = `<strong></strong><div class="conflict-detail"></div>`;
-        div.querySelector("strong").textContent =
-          c.displayName || c.typeKey || "Tipo em conflito";
-        div.querySelector(".conflict-detail").innerHTML =
-          lines +
-          '<br><span style="opacity:.85">No SEI o usuário escolhe qual exibir.</span>';
+
+        const title = document.createElement("strong");
+        title.textContent = c.displayName || c.typeKey || "Tipo em conflito";
+
+        const detail = document.createElement("div");
+        detail.className = "conflict-detail";
+
+        (c.entries || []).forEach((e) => {
+          const path =
+            e.displayPath ||
+            [
+              e.sourceLabel,
+              e.flowTitle || e.flowName || e.processType
+            ]
+              .filter(Boolean)
+              .join(" | ") ||
+            e.processType ||
+            "";
+
+          const line = document.createElement("div");
+          line.textContent = `• ${path} (${e.steps} etapa${e.steps === 1 ? "" : "s"})`;
+          detail.appendChild(line);
+        });
+
+        const note = document.createElement("div");
+        note.style.opacity = "0.85";
+        note.textContent = "No SEI o usuário escolhe qual exibir.";
+
+        detail.appendChild(note);
+        div.appendChild(title);
+        div.appendChild(detail);
         els.conflictsList.appendChild(div);
       });
     } else {
