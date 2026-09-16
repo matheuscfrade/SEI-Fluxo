@@ -26,6 +26,30 @@
     }
   }
 
+  function getOriginFromUrl(url) {
+    try {
+      return new URL(url || "", location.href).origin;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function getParentOrigin() {
+    return getOriginFromUrl(document.referrer) || location.origin;
+  }
+
+  function getFrameOrigin(frame) {
+    const src = frame?.src || frame?.getAttribute("src") || "";
+    return getOriginFromUrl(src) || location.origin;
+  }
+
+  function isAllowedMessageOrigin(event) {
+    if (!event || !event.origin) return false;
+    if (event.origin === location.origin) return true;
+    if (!IS_TOP && event.origin === getParentOrigin()) return true;
+    return false;
+  }
+
   function shouldMountSidebarHere() {
     return IS_TOP;
   }
@@ -288,11 +312,13 @@
   function broadcastToFrames() {
     try {
       const frames = document.querySelectorAll("iframe, frame");
-      frames.forEach((f) => {
+      frames.forEach((frame) => {
         try {
-          f.contentWindow?.postMessage(
+          const targetOrigin = getFrameOrigin(frame);
+          if (!targetOrigin || targetOrigin === "null") return;
+          frame.contentWindow?.postMessage(
             { source: "sei-fluxo", type: MSG_REQUEST },
-            "*"
+            targetOrigin
           );
         } catch (_) {
           /* ignore */
@@ -348,10 +374,13 @@
         (local.processType || local.processNumber || local.idProcedimento)
       ) {
         try {
-          window.top.postMessage(
-            { source: "sei-fluxo", type: MSG_META, meta: local },
-            "*"
-          );
+          const targetOrigin = getParentOrigin();
+          if (targetOrigin && targetOrigin !== "null") {
+            window.top.postMessage(
+              { source: "sei-fluxo", type: MSG_META, meta: local },
+              targetOrigin
+            );
+          }
         } catch (_) {
           /* ignore */
         }
@@ -384,6 +413,7 @@
   function onWindowMessage(event) {
     const data = event.data;
     if (!data || data.source !== "sei-fluxo") return;
+    if (!isAllowedMessageOrigin(event)) return;
 
     if (!IS_TOP && data.type === MSG_REQUEST) {
       scheduleScan(50);
